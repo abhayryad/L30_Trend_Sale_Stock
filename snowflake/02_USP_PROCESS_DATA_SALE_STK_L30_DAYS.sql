@@ -12,10 +12,15 @@
 --
 -- "Today" is taken in India time (Asia/Kolkata), same as step 1; see the note there.
 --
--- MAJ_CAT (added 2026-10-13): taken from GOLD.DIM_PRODUCT_V2 for every MATNR, so step 2b can
--- roll up to MAJ_CAT x STORE_CODE. LEFT JOIN: articles missing from the product master, or
--- with a blank MAJ_CAT, get 'NA' and are kept. DIM_PRODUCT_V2 has one row per article
--- (checked 2026-10-13); the QUALIFY guards against duplicates appearing later.
+-- SEG, DIV, SUB_DIV, MAJ_CAT (added 2026-10-13): taken from GOLD.DIM_PRODUCT_V2 for every MATNR,
+-- so step 2b can roll up to SEG x DIV x SUB_DIV x MAJ_CAT x STORE_CODE. Blank values become 'NA'.
+-- DIM_PRODUCT_V2 has one row per article (checked 2026-10-13); the QUALIFY guards against
+-- duplicates appearing later.
+--
+-- Only SEG APP, GM, MKT are kept (user decision 2026-10-13). INNER JOIN, so articles missing
+-- from the product master are dropped too (none on 2026-10-13). Dropped on 2026-10-13: FAB,
+-- ACC, NT, SERVICE1 and blank SEG = ~35k articles, no sales (3 units), ~Rs 50 Cr stock value
+-- on the last day (~4%). So stock totals are lower than SQL Server's, which keeps all SEGs.
 
 CREATE OR REPLACE PROCEDURE V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS()
 RETURNS VARCHAR
@@ -42,14 +47,18 @@ BEGIN
         'CREATE OR REPLACE TRANSIENT TABLE V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS
          DATA_RETENTION_TIME_IN_DAYS = 0 AS
          WITH PRODUCT AS (
-             SELECT TRY_TO_NUMBER(ARTICLE_NUMBER) AS MATNR, NULLIF(TRIM(MAJ_CAT), '''') AS MAJ_CAT
+             SELECT TRY_TO_NUMBER(ARTICLE_NUMBER)               AS MATNR,
+                    UPPER(TRIM(SEG))                            AS SEG,
+                    COALESCE(NULLIF(TRIM(DIV), ''''), ''NA'')     AS DIV,
+                    COALESCE(NULLIF(TRIM(SUB_DIV), ''''), ''NA'') AS SUB_DIV,
+                    COALESCE(NULLIF(TRIM(MAJ_CAT), ''''), ''NA'') AS MAJ_CAT
              FROM V2RETAIL.GOLD.DIM_PRODUCT_V2
              QUALIFY ROW_NUMBER() OVER (PARTITION BY TRY_TO_NUMBER(ARTICLE_NUMBER) ORDER BY MAJ_CAT) = 1
          )
-         SELECT T.MATNR, T.STORE_CODE, COALESCE(P.MAJ_CAT, ''NA'') AS MAJ_CAT, ' || cols || '
+         SELECT T.MATNR, T.STORE_CODE, P.SEG, P.DIV, P.SUB_DIV, P.MAJ_CAT, ' || cols || '
          FROM V2RETAIL.SILVER.TREND_KPI_DATA T
-         LEFT JOIN PRODUCT P ON P.MATNR = T.MATNR
-         GROUP BY T.MATNR, T.STORE_CODE, COALESCE(P.MAJ_CAT, ''NA'')';
+         INNER JOIN PRODUCT P ON P.MATNR = T.MATNR AND P.SEG IN (''APP'', ''GM'', ''MKT'')
+         GROUP BY T.MATNR, T.STORE_CODE, P.SEG, P.DIV, P.SUB_DIV, P.MAJ_CAT';
 
     EXECUTE IMMEDIATE :sql_text;
 

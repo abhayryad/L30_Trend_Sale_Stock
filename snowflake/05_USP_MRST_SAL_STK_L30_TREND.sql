@@ -16,9 +16,10 @@
 --   MATNR, M_BUYING_TYPE, M_YARN, M_YARN_02 exist in both B and D: callers must prefix them
 --   (B.M_YARN or D.M_YARN), otherwise Snowflake raises "ambiguous column name".
 --
--- MAJ_CAT in PROCESS_DATA_SALE_STK_L30_DAYS (added 2026-10-13): left out here (EXCLUDE in the
--- FROM, and not summed) so existing callers passing a bare MAJ_CAT still get B.MAJ_CAT
--- instead of an "ambiguous column name" error.
+-- SEG, DIV, SUB_DIV, MAJ_CAT in PROCESS_DATA_SALE_STK_L30_DAYS (added 2026-10-13): left out here
+-- (EXCLUDE in the FROM, and not summed) so existing callers passing a bare SEG / DIV / SUB_DIV /
+-- MAJ_CAT still get B.<column> instead of an "ambiguous column name" error.
+-- Since 2026-10-13 step 2 keeps only SEG APP / GM / MKT, so every report here is limited to those.
 --
 -- TODO before running:
 --   * Joined tables: V2RETAIL.GOLD.DIM_PRODUCT_V2 (was DIM_PRODUCT in SQL Server)
@@ -78,7 +79,7 @@ BEGIN
     FROM V2RETAIL.INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = 'SILVER'
       AND TABLE_NAME   = 'PROCESS_DATA_SALE_STK_L30_DAYS'
-      AND COLUMN_NAME NOT IN ('MATNR', 'STORE_CODE', 'MAJ_CAT');
+      AND COLUMN_NAME NOT IN ('MATNR', 'STORE_CODE', 'SEG', 'DIV', 'SUB_DIV', 'MAJ_CAT');
 
     -- GROUP BY list: 'STORE_CODE, MAJ_CAT' -> STORE_CODE, MAJ_CAT (spaces trimmed, [x] -> "x")
     SELECT LISTAGG(REPLACE(REPLACE(TRIM(VALUE), '[', '"'), ']', '"'), ', ') WITHIN GROUP (ORDER BY INDEX)
@@ -90,7 +91,7 @@ BEGIN
 
     sql_text :=
         'SELECT ' || select_cols || ', ' || columns_sum || '
-         FROM (SELECT * EXCLUDE MAJ_CAT FROM V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS) A
+         FROM (SELECT * EXCLUDE (SEG, DIV, SUB_DIV, MAJ_CAT) FROM V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS) A
          INNER JOIN V2RETAIL.GOLD.DIM_PRODUCT_V2 B
                  ON A.MATNR = TRY_TO_NUMBER(B.ARTICLE_NUMBER)
          INNER JOIN V2RETAIL.AKS_SILVER.SLV_MIS_STORE_MASTER C
