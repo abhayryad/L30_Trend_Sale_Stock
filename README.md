@@ -73,7 +73,7 @@ Run order for setup: 00 → 01 → 02 → test with `CALL` → 06 → 05 → 03.
 
 `PROCESS_DATA_SALE_STK_L30_DAYS` now has `MAJ_CAT` (3rd column, from `GOLD.DIM_PRODUCT_V2`; 'NA'
 when missing/blank). Step 2b sums it into `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT`
-(one row per MAJ_CAT + STORE_CODE, same 155 columns), run daily by task `T_L30D_MAJCAT` after step 2.
+(one row per MAJ_CAT + STORE_CODE, same 155 columns), run daily by task `TREND_L30_MAJ_CAT` after step 2.
 Report procedure 05 excludes the new column, so callers passing a bare `MAJ_CAT` still work.
 Other reports reading the article table with `SELECT *` or a bare `MAJ_CAT` in a join must be checked.
 

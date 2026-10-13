@@ -2,7 +2,7 @@
 -- One row per MAJ_CAT + STORE_CODE, same 155 day/metric columns as the article-level table
 -- (e.g. "2026-09-04_STK_Q"), summed over all articles of that MAJ_CAT in that store.
 --
--- Runs after step 2 (task T_L30D_MAJCAT in 03_daily_tasks.sql). The column list is read from
+-- Runs after step 2 (task TREND_L30_MAJ_CAT in 03_daily_tasks.sql). The column list is read from
 -- the article-level table at run time, so the dates always match it.
 -- Empty days are 0, because the article-level table already has 0 instead of NULL.
 -- Articles without a MAJ_CAT in the product master are under MAJ_CAT = 'NA'.
