@@ -1,0 +1,6 @@
+-- SQL Server original as provided by the user on 2026-10-06 (reference only).
+-- Identical to 03_USP_MRST_SAL_STK_L30_TREND.sql except for one extra join in the final query:
+--
+--   LEFT JOIN ET_ART_Broader_Menu_DATA (NOLOCK) D ON LEFT(CAST(A.MATNR AS BIGINT),10) = CAST(D.MATNR AS BIGINT)
+--
+-- See ../snowflake/06_USP_MRST_SAL_STK_L30_TREND_BROADER.sql for the Snowflake version.

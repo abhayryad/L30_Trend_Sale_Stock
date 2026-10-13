@@ -1,0 +1,169 @@
+-- Store-level comparison: SQL Server (DataV2) vs Snowflake (V2RETAIL).
+--
+-- How to use:
+--   1. Pick ONE window and use it on both sides (default below: 2026-09-06 .. 2026-10-06,
+--      i.e. the window of a run made on 2026-10-07). Change both DT1/DT2 if needed.
+--   2. Run part A (SQL Server). Query A3 prints ready-made VALUES rows.
+--   3. Paste those rows into part B query B3 (Snowflake), which lines the stores up side by
+--      side and shows only stores that differ.
+--
+-- Metric names: SQL Server calls gross margin GM, Snowflake calls it SALE_GM.
+-- Stock is compared on the last day only (DT2); sales are summed over the whole window.
+
+
+/* =====================================================================================
+   PART A: SQL SERVER (DataV2)
+   ===================================================================================== */
+
+-- A1. Store master: every store code with its status/type
+SELECT ST_CD, ST_STAT, ST_TYP
+FROM dbo.STORE_PLANT_MASTER (NOLOCK)
+ORDER BY ST_CD;
+
+-- A2. Per-store totals straight from the sources (independent of the procedures)
+DECLARE @DT1 DATE = '2026-09-06', @DT2 DATE = '2026-10-06';
+
+WITH STK_RAW AS (   -- same as the loader: LOG UNION staging (UNION drops identical rows)
+    SELECT WERKS AS STORE_CODE, SUM(LABST) AS STK_Q, SUM(LABST_DMBTR) AS STK_V
+    FROM ET_STOCK_DATA_LOG (NOLOCK)
+    WHERE CAST(STOCK_DATE AS DATE) = @DT2 AND LGORT IN ('0001','0006')
+    GROUP BY WERKS
+    UNION
+    SELECT WERKS, SUM(LABST), SUM(LABST_DMBTR)
+    FROM ET_STOCK_DATA (NOLOCK)
+    WHERE CAST(STOCK_DATE AS DATE) = @DT2 AND LGORT IN ('0001','0006')
+    GROUP BY WERKS
+),
+STK AS (
+    SELECT STORE_CODE, SUM(STK_Q) STK_Q, SUM(STK_V) STK_V FROM STK_RAW GROUP BY STORE_CODE
+),
+SAL AS (
+    SELECT STORE_CODE, SUM(SALE_QTY) AS SALE_Q, SUM(SALE_VAL) AS SALE_V, SUM(SALE_VAL - NET_MAP) AS SALE_GM,
+           COUNT(DISTINCT CAST(SALES_DATE AS DATE)) AS SALE_DAYS
+    FROM VIEW_ET_SALES_DATA (NOLOCK)
+    WHERE CAST(SALES_DATE AS DATE) BETWEEN @DT1 AND @DT2
+    GROUP BY STORE_CODE
+)
+SELECT COALESCE(K.STORE_CODE, S.STORE_CODE) AS STORE_CODE,
+       ISNULL(K.STK_Q, 0) STK_Q, ISNULL(K.STK_V, 0) STK_V,
+       ISNULL(S.SALE_Q, 0) SALE_Q, ISNULL(S.SALE_V, 0) SALE_V, ISNULL(S.SALE_GM, 0) SALE_GM,
+       ISNULL(S.SALE_DAYS, 0) SALE_DAYS,
+       M.ST_STAT, M.ST_TYP
+FROM STK K
+FULL JOIN SAL S ON S.STORE_CODE = K.STORE_CODE
+LEFT JOIN dbo.STORE_PLANT_MASTER M ON M.ST_CD = COALESCE(K.STORE_CODE, S.STORE_CODE)
+ORDER BY 1;
+
+-- A3. Same as A2 from the staging table TREND_KPI_DATA (what the reports actually use),
+--     printed as VALUES rows to paste into B3. Run right after the daily job so the window matches.
+DECLARE @D2 DATE = '2026-10-06';
+
+SELECT '(''' + STORE_CODE + ''','
+     + CAST(SUM(CASE WHEN PARTICULARS_NAME = 'STK_Q'  AND DATES = @D2 THEN PARTICULARS_VALUE ELSE 0 END) AS VARCHAR(40)) + ','
+     + CAST(SUM(CASE WHEN PARTICULARS_NAME = 'STK_V'  AND DATES = @D2 THEN PARTICULARS_VALUE ELSE 0 END) AS VARCHAR(40)) + ','
+     + CAST(SUM(CASE WHEN PARTICULARS_NAME = 'SALE_Q' THEN PARTICULARS_VALUE ELSE 0 END) AS VARCHAR(40)) + ','
+     + CAST(SUM(CASE WHEN PARTICULARS_NAME = 'SALE_V' THEN PARTICULARS_VALUE ELSE 0 END) AS VARCHAR(40)) + ','
+     + CAST(SUM(CASE WHEN PARTICULARS_NAME = 'GM'     THEN PARTICULARS_VALUE ELSE 0 END) AS VARCHAR(40)) + '),' AS VALUES_ROW
+FROM TREND_KPI_DATA (NOLOCK)
+GROUP BY STORE_CODE
+ORDER BY STORE_CODE;
+-- Remove the comma after the last row when pasting.
+
+-- A4. One store, day by day (use after B3 shows which store differs)
+DECLARE @ST VARCHAR(10) = 'DB01', @F1 DATE = '2026-09-06', @F2 DATE = '2026-10-06';
+
+SELECT CAST(SALES_DATE AS DATE) AS DT, SUM(SALE_QTY) SALE_Q, SUM(SALE_VAL) SALE_V, SUM(SALE_VAL - NET_MAP) SALE_GM
+FROM VIEW_ET_SALES_DATA (NOLOCK)
+WHERE STORE_CODE = @ST AND CAST(SALES_DATE AS DATE) BETWEEN @F1 AND @F2
+GROUP BY CAST(SALES_DATE AS DATE)
+ORDER BY 1;
+
+
+/* =====================================================================================
+   PART B: SNOWFLAKE (V2RETAIL)
+   ===================================================================================== */
+
+-- B1. Store master: every store code with its status/type
+SELECT ST_CD, ST_STAT, ST_TYP
+FROM V2RETAIL.AKS_SILVER.SLV_MIS_STORE_MASTER
+ORDER BY ST_CD;
+
+-- B2. Per-store totals straight from the sources (same shape as A2)
+SET (DT1, DT2) = ('2026-09-06'::DATE, '2026-10-06'::DATE);
+
+WITH stk AS (
+    SELECT TRIM(WERKS) AS STORE_CODE, SUM(LABST) AS STK_Q, SUM(LABST_DMBTR) AS STK_V
+    FROM V2RETAIL.BRONZE.ET_STOCK_DATA
+    WHERE STOCK_DATE::DATE = $DT2 AND LGORT IN ('0001','0006')
+    GROUP BY 1
+),
+sal AS (
+    SELECT TRIM(WERKS) AS STORE_CODE,
+           SUM(TRY_TO_NUMBER(TRIM(FKIMG), 38, 4)) AS SALE_Q,
+           SUM(TRY_TO_NUMBER(TRIM(NETWR), 38, 4)) AS SALE_V,
+           SUM(TRY_TO_NUMBER(TRIM(NETWR), 38, 4) - TRY_TO_NUMBER(TRIM(WAVWR), 38, 4)) AS SALE_GM,
+           COUNT(DISTINCT FKDAT_ANA) AS SALE_DAYS
+    FROM V2RETAIL.BRONZE.VBRP
+    WHERE FKDAT_ANA BETWEEN TO_CHAR($DT1, 'YYYYMMDD') AND TO_CHAR($DT2, 'YYYYMMDD')
+      AND FKART_ANA = 'FP'
+    GROUP BY 1
+)
+SELECT COALESCE(k.STORE_CODE, s.STORE_CODE) AS STORE_CODE,
+       ZEROIFNULL(k.STK_Q) STK_Q, ZEROIFNULL(k.STK_V) STK_V,
+       ZEROIFNULL(s.SALE_Q) SALE_Q, ZEROIFNULL(s.SALE_V) SALE_V, ZEROIFNULL(s.SALE_GM) SALE_GM,
+       ZEROIFNULL(s.SALE_DAYS) SALE_DAYS,
+       m.ST_STAT, m.ST_TYP
+FROM stk k
+FULL JOIN sal s ON s.STORE_CODE = k.STORE_CODE
+LEFT JOIN V2RETAIL.AKS_SILVER.SLV_MIS_STORE_MASTER m ON m.ST_CD = COALESCE(k.STORE_CODE, s.STORE_CODE)
+ORDER BY 1;
+
+-- B3. Side-by-side diff: paste the A3 rows into SQLS, compare with Snowflake TREND_KPI_DATA.
+--     Shows only stores missing on one side or with a gap above the tolerance.
+SET D2 = '2026-10-06'::DATE;
+
+WITH sqls (STORE_CODE, STK_Q, STK_V, SALE_Q, SALE_V, SALE_GM) AS (
+    SELECT * FROM VALUES
+        ('DB01', 0, 0, 0, 0, 0)          -- <<< replace with the A3 output
+),
+snow AS (
+    SELECT STORE_CODE,
+           SUM(IFF(PARTICULARS_NAME = 'STK_Q'  AND DATES = $D2, PARTICULARS_VALUE, 0)) STK_Q,
+           SUM(IFF(PARTICULARS_NAME = 'STK_V'  AND DATES = $D2, PARTICULARS_VALUE, 0)) STK_V,
+           SUM(IFF(PARTICULARS_NAME = 'SALE_Q',  PARTICULARS_VALUE, 0)) SALE_Q,
+           SUM(IFF(PARTICULARS_NAME = 'SALE_V',  PARTICULARS_VALUE, 0)) SALE_V,
+           SUM(IFF(PARTICULARS_NAME = 'SALE_GM', PARTICULARS_VALUE, 0)) SALE_GM
+    FROM V2RETAIL.SILVER.TREND_KPI_DATA
+    GROUP BY STORE_CODE
+)
+SELECT COALESCE(q.STORE_CODE, f.STORE_CODE) AS STORE_CODE,
+       CASE WHEN q.STORE_CODE IS NULL THEN 'ONLY SNOWFLAKE'
+            WHEN f.STORE_CODE IS NULL THEN 'ONLY SQL SERVER'
+            ELSE 'BOTH' END                         AS PRESENCE,
+       m.ST_STAT, m.ST_TYP,
+       q.STK_Q  AS SQLS_STK_Q,  f.STK_Q  AS SNOW_STK_Q,  ZEROIFNULL(f.STK_Q)  - ZEROIFNULL(q.STK_Q)  AS DIFF_STK_Q,
+       q.STK_V  AS SQLS_STK_V,  f.STK_V  AS SNOW_STK_V,  ZEROIFNULL(f.STK_V)  - ZEROIFNULL(q.STK_V)  AS DIFF_STK_V,
+       q.SALE_Q AS SQLS_SALE_Q, f.SALE_Q AS SNOW_SALE_Q, ZEROIFNULL(f.SALE_Q) - ZEROIFNULL(q.SALE_Q) AS DIFF_SALE_Q,
+       q.SALE_V AS SQLS_SALE_V, f.SALE_V AS SNOW_SALE_V, ZEROIFNULL(f.SALE_V) - ZEROIFNULL(q.SALE_V) AS DIFF_SALE_V,
+       ROUND(100 * DIFF_SALE_V / NULLIF(q.SALE_V, 0), 2)                                              AS DIFF_SALE_V_PCT,
+       q.SALE_GM AS SQLS_GM,    f.SALE_GM AS SNOW_GM,    ZEROIFNULL(f.SALE_GM) - ZEROIFNULL(q.SALE_GM) AS DIFF_GM
+FROM sqls q
+FULL JOIN snow f ON f.STORE_CODE = q.STORE_CODE
+LEFT JOIN V2RETAIL.AKS_SILVER.SLV_MIS_STORE_MASTER m ON m.ST_CD = COALESCE(q.STORE_CODE, f.STORE_CODE)
+WHERE q.STORE_CODE IS NULL OR f.STORE_CODE IS NULL
+   OR ABS(DIFF_STK_Q) > 0.5 OR ABS(DIFF_SALE_Q) > 0.5 OR ABS(DIFF_SALE_V) > 1
+ORDER BY ABS(DIFF_SALE_V) DESC NULLS FIRST;
+
+-- B4. One store, day by day (same shape as A4)
+SET (ST, F1, F2) = ('DB01', '2026-09-06'::DATE, '2026-10-06'::DATE);
+
+SELECT TRY_TO_DATE(FKDAT_ANA, 'YYYYMMDD') AS DT,
+       SUM(TRY_TO_NUMBER(TRIM(FKIMG), 38, 4)) SALE_Q,
+       SUM(TRY_TO_NUMBER(TRIM(NETWR), 38, 4)) SALE_V,
+       SUM(TRY_TO_NUMBER(TRIM(NETWR), 38, 4) - TRY_TO_NUMBER(TRIM(WAVWR), 38, 4)) SALE_GM
+FROM V2RETAIL.BRONZE.VBRP
+WHERE TRIM(WERKS) = $ST
+  AND FKDAT_ANA BETWEEN TO_CHAR($F1, 'YYYYMMDD') AND TO_CHAR($F2, 'YYYYMMDD')
+  AND FKART_ANA = 'FP'
+GROUP BY 1
+ORDER BY 1;
