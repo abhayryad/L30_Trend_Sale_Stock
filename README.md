@@ -139,7 +139,7 @@ after step 2. Current reports (all in `V2RETAIL.SILVER`, active stores only, sam
 Report 8 comes from the broader menu: on 2026-10-13, 575,397 of 619,077 articles have a value
 (10 distinct values, 93.4% of sales); the rest show as `'NA'`.
 
-Kept in the file as comments, not built yet: the 3 `USP_MRST_SAL_STK_L30_TREND_BY_REG_ZONE` reports
+Kept in the file as comments, not built yet (the views of the same name left over from 2026-10-13 must be dropped): the 3 `USP_MRST_SAL_STK_L30_TREND_BY_REG_ZONE` reports
 (COLOR, MRP, MRP + RNG-SEG). Assumed to be the same report plus the store's `C.ZONE, C.REG`; its 3rd input
 is a STORE_CODE filter (to be handled later, would go in the filter: `AND A.STORE_CODE IN ('DB01','HB05')`).
 
@@ -167,7 +167,9 @@ fails, the ones after it in the list are not rebuilt that day and the task shows
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
-- Tasks were renamed on 2026-10-13 from `T_L30D_*`; the first run under the new names is 2026-10-14 07:00.
+- Tasks were renamed on 2026-10-13 from `T_L30D_*`. **First run checked 2026-10-14:** LOAD 07:00–07:01,
+  PIVOT 07:01–07:12, MAJ_CAT and OUTPUTS done by 07:12; all 8 views re-created, ending at 2026-10-13, and
+  view totals equal the main table for active stores (SALE_V 2026-10-13: 166,434,951).
 - Did they run? See [03_daily_tasks.sql](snowflake/03_daily_tasks.sql) (TASK_HISTORY query).
 - Change the time: suspend `TREND_L30_LOAD`, `ALTER TASK … SET SCHEDULE`, resume it.
   A task chain can only be changed while its first task is suspended.
@@ -238,7 +240,7 @@ match (2026-10-13). Merged into procedure 05 as alias D (no separate `_BROADER` 
 - [ ] Run the `VBRP conversion` check in `04_checks.sql` (expect zero bad values).
 - [ ] `USP_MRST_SAL_STK_L30_TREND_BY_REG_ZONE`: get its SQL Server code (`sp_helptext`) to confirm it only adds ZONE + REG; then enable its 3 reports and handle its STORE_CODE filter.
 - [ ] Grant SELECT on the report views to the reader role(s).
-- [ ] After 2026-10-14 07:00: confirm all 4 tasks ran (first run under the new names) and the 8 views were rebuilt.
+- [ ] Drop the 3 leftover `V_L30_REGZONE_*` views (built 2026-10-13, no longer rebuilt, so they point at old date columns) until the `_BY_REG_ZONE` reports are enabled.
 - [ ] Find reports/consumers that use `_GM` column names (now `_SALE_GM`) or hard-code date column names.
 - [ ] Other reports reading the main table with `SELECT *`, or a bare SEG / DIV / SUB_DIV / MAJ_CAT in a join, must be checked (new columns since 2026-10-13).
 - [ ] MATNR is numeric: joins to tables with text MATNR need `TRY_TO_NUMBER(x.MATNR) = p.MATNR`.
@@ -250,3 +252,4 @@ match (2026-10-13). Merged into procedure 05 as alias D (no separate `_BROADER` 
 - [x] SEG / DIV / SUB_DIV / MAJ_CAT on the main table; APP / GM / MKT filter in step 2 (2026-10-13).
 - [x] Column names that change daily: report views are re-created every morning (step 4, 2026-10-13).
 - [x] Report list from SQL Server turned into 7 views + 1 new (2026-10-13).
+- [x] First automatic run 2026-10-14 07:00: all 4 tasks succeeded, 8 views rebuilt, totals checked.
