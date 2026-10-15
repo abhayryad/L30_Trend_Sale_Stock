@@ -8,8 +8,7 @@ Everything lives in **`V2RETAIL.SILVER`**, is owned by **`PROGRAMMER_DEV_ROLE`**
 ```
 07:00  Step 1  collect stock + sales of the last 31 days   → V2RETAIL.SILVER.TREND_KPI_DATA (long list)
   ↓    Step 2  one row per article per store, APP/GM/MKT   → V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS (main table)
-  ├──► Step 2b MAJ_CAT summary                              → V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT
-  └──► Step 4  re-create the 15 report views                → V2RETAIL.SILVER.V_MRST_TREND_* views
+  └──► Step 2b MAJ_CAT summary                              → V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT
        Step 3  on-demand report procedure (not scheduled)   → V2RETAIL.SILVER.USP_MRST_SAL_STK_L30_TREND
        Step 5  on-demand trend reports by name, with sort   → V2RETAIL.SILVER.USP_TREND_REPORT
 ```
@@ -28,21 +27,19 @@ down in this README always mean `V2RETAIL.SILVER.<name>`.
 | `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS` | transient table | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) (procedure) | main table, step 2 |
 | `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` | transient table | [06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql) (procedure) | MAJ_CAT summary, step 2b |
 | `V2RETAIL.SILVER.TREND_DIMENSIONS` | table | [13_](snowflake/13_USP_TREND_REPORT.sql) | names usable in `USP_TREND_REPORT` |
-| `V2RETAIL.SILVER.V_MRST_TREND_*` (15) | views | `USP_BUILD_TREND_REPORTS_DAILY` | report views, step 4 |
 | `V2RETAIL.SILVER.USP_GENERATE_L30D_STK_SALE_VQ_MRST` | procedure | [01_](snowflake/01_USP_GENERATE_L30D_STK_SALE_VQ_MRST.sql) | step 1 |
 | `V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS` | procedure | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) | step 2 |
 | `V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` | procedure | [06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql) | step 2b |
 | `V2RETAIL.SILVER.USP_MRST_SAL_STK_L30_TREND` | procedure | [05_](snowflake/05_USP_MRST_SAL_STK_L30_TREND.sql) | step 3 |
-| `V2RETAIL.SILVER.USP_BUILD_L30_OUTPUT` | procedure | [11_](snowflake/11_output_builder.sql) | step 4 view builder |
-| `V2RETAIL.SILVER.USP_BUILD_TREND_REPORTS_DAILY` | procedure | [11_](snowflake/11_output_builder.sql) / [12_](snowflake/12_run_mrst_rename.sql) | step 4 report list |
 | `V2RETAIL.SILVER.USP_TREND_REPORT` | procedure | [13_](snowflake/13_USP_TREND_REPORT.sql) | step 5 |
 | `V2RETAIL.SILVER.TREND_L30_LOAD` | task | [03_](snowflake/03_daily_tasks.sql) | 07:00 IST, runs step 1 |
 | `V2RETAIL.SILVER.TREND_L30_PIVOT` | task | [03_](snowflake/03_daily_tasks.sql) | after LOAD, step 2 |
 | `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | task | [03_](snowflake/03_daily_tasks.sql) | after PIVOT, step 2b |
-| `V2RETAIL.SILVER.TREND_L30_OUTPUTS` | task | [11_](snowflake/11_output_builder.sql) | after PIVOT, step 4 |
 
-Superseded by 11_ (created by [10_](snowflake/10_report_views.sql); may still exist in Snowflake): `V2RETAIL.SILVER.USP_CREATE_V_L30_SALE_STK_MACRO_MVGR`,
-`V2RETAIL.SILVER.V_L30_SALE_STK_MACRO_MVGR`, task `V2RETAIL.SILVER.TREND_L30_VIEWS`.
+Removed by [15_](snowflake/15_drop_report_views.sql) (step 4, 2026-10-15): the 15 `V2RETAIL.SILVER.V_MRST_TREND_*` views,
+`V2RETAIL.SILVER.USP_BUILD_L30_OUTPUT`, `V2RETAIL.SILVER.USP_BUILD_TREND_REPORTS_DAILY` and task `V2RETAIL.SILVER.TREND_L30_OUTPUTS`.
+Already gone (checked 2026-10-15): the old `V_L30_*` views and the 10_ objects (`V_L30_SALE_STK_MACRO_MVGR`,
+`USP_CREATE_V_L30_SALE_STK_MACRO_MVGR`, task `TREND_L30_VIEWS`).
 
 ## The numbers
 
@@ -116,83 +113,21 @@ CALL V2RETAIL.SILVER.USP_MRST_SAL_STK_L30_TREND('STORE_CODE,MAJ_CAT', 'STORE_COD
 - Special filters kept from SQL Server: VAR-ART reports → 13-digit articles; `MERGE_VENDOR_CODE AS [M-VND-CD]` → SEG APP/GM/MKT.
 - `EXECUTE AS CALLER`: callers need read access to the main table, `DIM_PRODUCT_V2`, the broader menu and the store master.
 
-### Step 4: report views (rebuilt every morning)
-[11_output_builder.sql](snowflake/11_output_builder.sql). Each report is a view. Views must be re-created
-every day because a view remembers the exact column names it was created with, and the date columns
-change daily. Nothing has to be truncated: a view holds no data (it reads the main table when opened),
-and `CREATE OR REPLACE` swaps the old definition for the new one in one step.
+### Step 4: report views (removed 2026-10-15)
+Until 2026-10-15, task `TREND_L30_OUTPUTS` re-created 15 report views (`V2RETAIL.SILVER.V_MRST_TREND_*`)
+every morning with `USP_BUILD_L30_OUTPUT` / `USP_BUILD_TREND_REPORTS_DAILY` ([11_](snowflake/11_output_builder.sql),
+[12_](snowflake/12_run_mrst_rename.sql)). [15_drop_report_views.sql](snowflake/15_drop_report_views.sql) drops the
+task, the views and the two procedures: step 5 (`USP_TREND_REPORT`) gives the same reports, and
+[14_](snowflake/14_trend_report_calls.sql) has a ready-made call for each of the 15.
 
-**The builder: `USP_BUILD_L30_OUTPUT(OUTPUT_NAME, OBJECT_TYPE, GROUP_COLS, WHERE_CLAUSE)`**
+Checked before removing (2026-10-15):
+- `V_MRST_TREND_MJ` and `V_MRST_TREND_MJ_M_FAB_MAIN_MVGR_1` equal the `USP_TREND_REPORT` query for the same
+  columns row by row (183,544 and 419,226 rows, 0 differences, all 155 day columns).
+- Colour / size reports differ on purpose: the views used `DIM_PRODUCT_V2` names (`JET BLACK`, 189 colours),
+  `USP_TREND_REPORT` uses `VW_PRODUCT_MASTER` codes (`JET_BLK`, 179 colours). Totals are the same.
+- Query history (14 days): the views were only read by hand, no service user / Excel / Power BI.
 
-```sql
-CALL V2RETAIL.SILVER.USP_BUILD_L30_OUTPUT(
-    'V2RETAIL.SILVER.V_MRST_TREND_MJ',                                 -- what to create
-    'VIEW',                                                              -- VIEW, or TABLE (computed once, opens faster)
-    'SEG, DIV, SUB_DIV AS "SUB-DIV", STORE_CODE, MAJ_CAT AS "MAJ-CAT"',  -- group by
-    'C.ST_STAT = ''ACT'' AND C.ST_TYP = ''STORE''');                     -- optional filter ('' = none)
-```
-
-What it does:
-1. Checks the inputs (VIEW / TABLE only; refuses to overwrite the pipeline tables).
-2. Reads today's 155 day columns and writes `SUM(...)` for each.
-3. Always LEFT JOINs **P** (product master), **D** (broader menu, first 10 digits of the article) and
-   **C** (store master), each cut to one row per key first, so a join can never double the numbers.
-4. Adds your columns and filter and `GROUP BY ALL` (groups by every column that isn't a sum, so columns are listed once).
-5. `CREATE OR REPLACE VIEW … COPY GRANTS` (keeps the read access people already had).
-
-Rules for `GROUP_COLS`:
-- Most names need no prefix. Only these exist in more than one table and need one (checked 2026-10-13):
-  `MATNR` (A, P, D) and `M_YARN`, `M_YARN_02`, `M_BUYING_TYPE` (P, D), e.g. `D.M_YARN`.
-- `AS` renames; names with `-` or spaces need double quotes: `MAJ_CAT AS "MAJ-CAT"`. Query them the same way: `SELECT "MAJ-CAT" …`.
-- Blank values stay NULL unless wrapped: `COALESCE(NULLIF(TRIM(col), ''), 'NA') AS col`
-  (inside the CALL string, quotes are doubled: `''''` and `''NA''`).
-- `EXECUTE AS CALLER`, so the filter text can't do more than the caller already can.
-
-Tested 2026-10-13 as a SELECT (store × MAJ_CAT × MACRO_MVGR × M_YARN × ZONE, active stores): totals equal
-the main table, and joins multiplied no rows.
-
-**The list: `USP_BUILD_TREND_REPORTS_DAILY()`**: one `CALL` per report, run by task `TREND_L30_OUTPUTS`
-after step 2. Current reports (all in `V2RETAIL.SILVER`, active stores only, same column names as SQL Server):
-
-| # | View | Group by (output names) | From SQL Server call |
-|---|---|---|---|
-| 1 | `V_MRST_TREND_MC` | SEG, DIV, SUB-DIV, STORE_CODE, MC-CD | `…'SEG,DIV,SUB_DIV,STORE_CODE,MC_CODE'` |
-| 2 | `V_MRST_TREND_MJ` | … STORE_CODE, MAJ-CAT | `…,MAJ_CAT` |
-| 3 | `V_MRST_TREND_MJ_FAB` | … MAJ-CAT, FABRIC (M_FAB_1) | `…,MAJ_CAT,M_FAB_1` |
-| 4 | `V_MRST_TREND_MJ_MACRO_MVGR` | … MAJ-CAT, MACRO MVGR | `…,MAJ_CAT,MACRO_MVGR` |
-| 5 | `V_MRST_TREND_MJ_MICRO_MVGR` | … MAJ-CAT, MICRO MVGR (MAIN_MVGR) | `…,MAJ_CAT,MAIN_MVGR` |
-| 6 | `V_MRST_TREND_MJ_RNG_SEG` | … MAJ-CAT, RNG-SEG (REG_SEG) | `…,MAJ_CAT,REG_SEG` |
-| 7 | `V_MRST_TREND_MJ_SIZE` | … MAJ-CAT, SIZE (SIZE_1) | `…,MAJ_CAT,SIZE_1` |
-| 8 | `V_MRST_TREND_MJ_M_FAB_MAIN_MVGR_1` | … MAJ-CAT, M_FAB_MAIN_MVGR_1 (broader menu; blank → 'NA') | new in Snowflake |
-| 9 | `V_MRST_TREND_MJ_CLR` | … MAJ-CAT, COLOR (COLOR_NEW) | `_BY_REG_ZONE …,MAJ_CAT,COLOR` |
-| 10 | `V_MRST_TREND_MJ_MRP` | … ZONE, STORE_CODE, MAJ-CAT, MRP | `_BY_REG_ZONE …,MAJ_CAT,MRP` |
-| 11 | `V_MRST_TREND_MJ_MRP_RNG_SEG` | … MAJ-CAT, MRP, RNG-SEG | `_BY_REG_ZONE …,MAJ_CAT,MRP,REG_SEG` |
-| 12 | `V_MRST_TREND_GEN_ART_CLR` | SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, ZONE, REG, STORE_CODE, GEN-ART, CLR | `_BY_REG_ZONE` (MRST_ST_GEN_ART_CLR) |
-| 13 | `V_MRST_TREND_MJ_M_VND_CD` | SEG, DIV, SUB_DIV, ZONE, STORE_CODE, MAJ_CAT, M-VND-CD | `_BY_REG_ZONE` (MRST_ST_MAJ_M_VND_CD) |
-| 14 | `V_MRST_TREND_M_VND_CD` | SEG, DIV, SUB_DIV, ZONE, STORE_CODE, M-VND-CD | `_BY_REG_ZONE` (MRST_ST_M_VND_CD) |
-| 15 | `V_MRST_TREND_MJ_CLR_NOT_APP` | as 9, SEG GM + MKT only | `_NOT_APP` (MRST_TREND_ST_MJ_CLR_NOT_APP) |
-
-Report 8 comes from the broader menu: on 2026-10-13, 575,397 of 619,077 articles have a value
-(10 distinct values, 93.4% of sales); the rest show as `'NA'`.
-
-Reports 9–14 are SQL Server's `_BY_REG_ZONE` reports. SQL Server exports them once per ZONE / REG / DIV;
-here each is one view, and the split is a `WHERE` when reading (e.g. `WHERE ZONE = 'NORTH'`).
-
-**Add a report:** add a `CALL` to `USP_BUILD_TREND_REPORTS_DAILY`, re-run its `CREATE`, then run the new
-`CALL` once so the view exists today. From the next morning it is rebuilt automatically.
-
-**Read a report:**
-```sql
-SELECT * FROM V2RETAIL.SILVER.V_MRST_TREND_MJ WHERE STORE_CODE = 'HB05';
-```
-
-**Check a report:** its total for a day equals the main table's for active stores (query in section 4 of `11_`).
-
-Limits: a view recalculates every time it is opened (switch a heavy report to `TABLE`); if one report
-fails, the ones after it in the list are not rebuilt that day and the task shows as failed.
-
-Step 4 still takes COLOR from `P.COLOR_NEW` and SIZE from `P.SIZE_1`; step 5 takes them from
-`VW_PRODUCT_MASTER` (see below), so the two can differ for colour / size reports.
+To bring the views back: re-run 11_ and 12_ (creates the procedures and the task), then resume the task.
 
 ### Step 5: trend reports by name (`USP_TREND_REPORT`)
 [13_USP_TREND_REPORT.sql](snowflake/13_USP_TREND_REPORT.sql) (deploy: run the whole file).
@@ -261,7 +196,6 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 | `V2RETAIL.SILVER.TREND_L30_LOAD` | 07:00 IST (`CRON 0 7 * * * Asia/Kolkata`) | step 1 |
 | `V2RETAIL.SILVER.TREND_L30_PIVOT` | after LOAD | step 2 |
 | `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
-| `V2RETAIL.SILVER.TREND_L30_OUTPUTS` | after PIVOT | step 4 (`USP_BUILD_TREND_REPORTS_DAILY`) |
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
@@ -287,14 +221,15 @@ snowflake/
   07_store_compare.sql                              SQL Server vs Snowflake, per store
   08_store_status_compare.sql                       store status: STORE_PLANT_MASTER vs SLV_MIS_STORE_MASTER
   09_maj_cat_store.sql                              ad-hoc MAJ_CAT × store queries (long + wide)
-  10_report_views.sql                               superseded by 11_ (first single-view version)
-  11_output_builder.sql                             step 4: view builder, report list, task TREND_L30_OUTPUTS
-  12_run_mrst_rename.sql                            one-off: report list with V_MRST_TREND_* names + drop old V_L30_* views
+  10_report_views.sql                               old: superseded by 11_ (first single-view version)
+  11_output_builder.sql                             old step 4: view builder, report list, task TREND_L30_OUTPUTS (removed by 15_)
+  12_run_mrst_rename.sql                            old step 4: report list with V_MRST_TREND_* names (removed by 15_)
   13_USP_TREND_REPORT.sql                           step 5: TREND_DIMENSIONS (names) + USP_TREND_REPORT
   14_trend_report_calls.sql                         step 5: the 15 SQL Server reports as USP_TREND_REPORT calls
+  15_drop_report_views.sql                          one-off: drop step 4 (task TREND_L30_OUTPUTS, 15 views, 2 builder procedures)
 ```
 
-Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 11 → 13, all as `PROGRAMMER_DEV_ROLE`.
+Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.
 After changing a procedure file, re-run its `CREATE` in Snowflake: editing the file alone changes nothing.
 
 ## Differences from SQL Server
@@ -311,7 +246,7 @@ After changing a procedure file, re-run its `CREATE` in Snowflake: editing the f
 - VBRP values that can't be converted become NULL (left out) instead of failing the load; `04_checks.sql` counts them.
 - "Today" taken in India time (`CONVERT_TIMEZONE('Asia/Kolkata', ...)`), because `CURRENT_DATE()` follows the session timezone.
 - Step 3: `[x]` turned into `"x"`; VAR-ART / M-VND-CD checks ignore case, like SQL Server's collation.
-- Reports are views rebuilt daily (step 4) instead of `EXEC` calls; column names kept (`"SUB-DIV"`, `"MAJ-CAT"`, …).
+- Reports come from `USP_TREND_REPORT` (step 5) instead of `EXEC` calls; column names kept (`"SUB-DIV"`, `"MAJ-CAT"`, …).
 - Store master `AKS_SILVER.SLV_MIS_STORE_MASTER` instead of `STORE_PLANT_MASTER` (see below).
 
 ## Decisions and findings
@@ -361,13 +296,11 @@ take only colour and size from the view** (step 5).
 - [ ] Only billing type FP is read from VBRP: check that SQL Server's sales also exclude returns/cancellations, and whether `NETWR` matches SQL Server's SALE_VAL (with/without tax).
 - [ ] Run the `VBRP conversion` check in `04_checks.sql` (expect zero bad values).
 - [ ] `USP_MRST_SAL_STK_L30_TREND_BY_REG_ZONE`: get its SQL Server code (`sp_helptext`) to confirm it only adds ZONE + REG; then enable its 3 reports and handle its STORE_CODE filter.
-- [ ] Grant SELECT on the report views to the reader role(s).
-- [ ] Run section 3 of `11_` once: drops the old `V_L30_STORE_*` views (renamed `V_MRST_TREND_*` 2026-10-14) and the 3 leftover `V_L30_REGZONE_*` views.
+- [ ] Run [15_drop_report_views.sql](snowflake/15_drop_report_views.sql) in Snowsight (drops step 4: task, 15 views, 2 procedures), then check the next 07:00 run.
 - [ ] Find reports/consumers that use `_GM` column names (now `_SALE_GM`) or hard-code date column names.
 - [ ] Other reports reading the main table with `SELECT *`, or a bare SEG / DIV / SUB_DIV / MAJ_CAT in a join, must be checked (new columns since 2026-10-13).
 - [ ] MATNR is numeric: joins to tables with text MATNR need `TRY_TO_NUMBER(x.MATNR) = p.MATNR`.
 - [ ] Deploy `13_USP_TREND_REPORT.sql` (run the whole file in Snowsight) and try a call from `14_`.
-- [ ] Step 4 views (`11_`) still take COLOR / SIZE from `DIM_PRODUCT_V2`: switch to `VW_PRODUCT_MASTER` too?
 - [ ] Grant SELECT on `VW_PRODUCT_MASTER` to whoever calls `USP_TREND_REPORT` (it runs as the caller).
 - [x] Stock source: `BRONZE.ET_STOCK_DATA` covers both SQL Server stock tables.
 - [x] Sales source: `BRONZE.VBRP`, date `FKDAT_ANA`, `FKART_ANA = 'FP'` (2026-10-06); VARCHAR conversion fixed.
