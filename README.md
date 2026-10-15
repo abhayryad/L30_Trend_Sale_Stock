@@ -6,16 +6,43 @@ Everything lives in **`V2RETAIL.SILVER`**, is owned by **`PROGRAMMER_DEV_ROLE`**
 ## In short
 
 ```
-07:00  Step 1  collect stock + sales of the last 31 days          → TREND_KPI_DATA (long list)
-  ↓    Step 2  one row per article per store, APP/GM/MKT only     → PROCESS_DATA_SALE_STK_L30_DAYS (main table)
-  ├──► Step 2b MAJ_CAT summary                                     → PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT
-  └──► Step 4  re-create the 15 report views                       → V_MRST_TREND_* views
-       Step 3  on-demand report procedure (not scheduled)          → USP_MRST_SAL_STK_L30_TREND
-       Step 5  on-demand trend reports by name, with sorting       → USP_TREND_REPORT
+07:00  Step 1  collect stock + sales of the last 31 days   → V2RETAIL.SILVER.TREND_KPI_DATA (long list)
+  ↓    Step 2  one row per article per store, APP/GM/MKT   → V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS (main table)
+  ├──► Step 2b MAJ_CAT summary                              → V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT
+  └──► Step 4  re-create the 15 report views                → V2RETAIL.SILVER.V_MRST_TREND_* views
+       Step 3  on-demand report procedure (not scheduled)   → V2RETAIL.SILVER.USP_MRST_SAL_STK_L30_TREND
+       Step 5  on-demand trend reports by name, with sort   → V2RETAIL.SILVER.USP_TREND_REPORT
 ```
 
 Each step starts as soon as the previous one succeeds. If a step fails, the ones after it don't run and
 yesterday's data stays in place. After the morning run, everything shows the **31 days up to yesterday**.
+
+## Objects created (full names)
+
+All in database `V2RETAIL`, schema `SILVER`, owned by `PROGRAMMER_DEV_ROLE`. Short names used further
+down in this README always mean `V2RETAIL.SILVER.<name>`.
+
+| Object | Type | Created by | Purpose |
+|---|---|---|---|
+| `V2RETAIL.SILVER.TREND_KPI_DATA` | transient table | [00_](snowflake/00_create_trend_kpi_data.sql) | step 1 output (long list) |
+| `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS` | transient table | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) (procedure) | main table, step 2 |
+| `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` | transient table | [06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql) (procedure) | MAJ_CAT summary, step 2b |
+| `V2RETAIL.SILVER.TREND_DIMENSIONS` | table | [13_](snowflake/13_USP_TREND_REPORT.sql) | names usable in `USP_TREND_REPORT` |
+| `V2RETAIL.SILVER.V_MRST_TREND_*` (15) | views | `USP_BUILD_TREND_REPORTS_DAILY` | report views, step 4 |
+| `V2RETAIL.SILVER.USP_GENERATE_L30D_STK_SALE_VQ_MRST` | procedure | [01_](snowflake/01_USP_GENERATE_L30D_STK_SALE_VQ_MRST.sql) | step 1 |
+| `V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS` | procedure | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) | step 2 |
+| `V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` | procedure | [06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql) | step 2b |
+| `V2RETAIL.SILVER.USP_MRST_SAL_STK_L30_TREND` | procedure | [05_](snowflake/05_USP_MRST_SAL_STK_L30_TREND.sql) | step 3 |
+| `V2RETAIL.SILVER.USP_BUILD_L30_OUTPUT` | procedure | [11_](snowflake/11_output_builder.sql) | step 4 view builder |
+| `V2RETAIL.SILVER.USP_BUILD_TREND_REPORTS_DAILY` | procedure | [11_](snowflake/11_output_builder.sql) / [12_](snowflake/12_run_mrst_rename.sql) | step 4 report list |
+| `V2RETAIL.SILVER.USP_TREND_REPORT` | procedure | [13_](snowflake/13_USP_TREND_REPORT.sql) | step 5 |
+| `V2RETAIL.SILVER.TREND_L30_LOAD` | task | [03_](snowflake/03_daily_tasks.sql) | 07:00 IST, runs step 1 |
+| `V2RETAIL.SILVER.TREND_L30_PIVOT` | task | [03_](snowflake/03_daily_tasks.sql) | after LOAD, step 2 |
+| `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | task | [03_](snowflake/03_daily_tasks.sql) | after PIVOT, step 2b |
+| `V2RETAIL.SILVER.TREND_L30_OUTPUTS` | task | [11_](snowflake/11_output_builder.sql) | after PIVOT, step 4 |
+
+Superseded by 11_ (created by [10_](snowflake/10_report_views.sql); may still exist in Snowflake): `V2RETAIL.SILVER.USP_CREATE_V_L30_SALE_STK_MACRO_MVGR`,
+`V2RETAIL.SILVER.V_L30_SALE_STK_MACRO_MVGR`, task `V2RETAIL.SILVER.TREND_L30_VIEWS`.
 
 ## The numbers
 
@@ -51,12 +78,12 @@ the same key as SQL Server.
 
 ### Step 1: collect the raw numbers
 `USP_GENERATE_L30D_STK_SALE_VQ_MRST` ([01_](snowflake/01_USP_GENERATE_L30D_STK_SALE_VQ_MRST.sql)) reads stock
-and sales for the last 31 days and writes them to `TREND_KPI_DATA` as a long list: one row per article,
+and sales for the last 31 days and writes them to `V2RETAIL.SILVER.TREND_KPI_DATA` as a long list: one row per article,
 store, day and metric.
 
 ### Step 2: one row per article per store (the main table)
 `USP_PROCESS_DATA_SALE_STK_L30_DAYS` ([02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql)) rebuilds
-**`PROCESS_DATA_SALE_STK_L30_DAYS`**:
+**`V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS`**:
 
 - Columns: `MATNR, STORE_CODE, SEG, DIV, SUB_DIV, MAJ_CAT` + the 155 day columns.
 - SEG / DIV / SUB_DIV / MAJ_CAT come from `DIM_PRODUCT_V2`; blank DIV / SUB_DIV / MAJ_CAT → `'NA'`.
@@ -68,7 +95,7 @@ store, day and metric.
 
 ### Step 2b: MAJ_CAT summary
 `USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` ([06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql))
-rebuilds **`PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT`**: the main table summed per
+rebuilds **`V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT`**: the main table summed per
 `SEG, DIV, SUB_DIV, MAJ_CAT, STORE_CODE` (same 155 columns).
 
 In APP / GM / MKT each MAJ_CAT has exactly one SEG / DIV / SUB_DIV (checked 2026-10-13: 648 APP, 350 GM,
@@ -194,7 +221,7 @@ CALL V2RETAIL.SILVER.USP_TREND_REPORT(
 Arguments 2–6 are optional, but to give a sort, 2–5 must be filled (blanks are fine).
 Always: active stores only (`ST_STAT = 'ACT'`, `ST_TYP = 'STORE'`); `VAR_ART` keeps 13-digit articles.
 
-**Names (`TREND_DIMENSIONS`, 162 on 2026-10-14):**
+**Names (`V2RETAIL.SILVER.TREND_DIMENSIONS`, 162 on 2026-10-14):**
 - 19 report names with SQL Server labels: `SEG, DIV, SUB_DIV (SUB-DIV), MAJ_CAT (MAJ-CAT), MC_CODE (MC-CD), MRP,
   RNG_SEG, COLOR, SIZE, FABRIC (M_FAB_1), MACRO_MVGR, MICRO_MVGR (MAIN_MVGR), M_FAB_MAIN_MVGR_1, M_VND_CD,
   GEN_ART, VAR_ART, STORE_CODE, ZONE, REG`.
@@ -214,11 +241,11 @@ Always: active stores only (`ST_STAT = 'ACT'`, `ST_TYP = 'STORE'`); `VAR_ART` ke
 
 | Alias | Source | Matched on | Joined when |
 |---|---|---|---|
-| A | `PROCESS_DATA_SALE_STK_L30_DAYS` | – | always |
-| P | `GOLD.DIM_PRODUCT_V2` | `MATNR` (= its `ARTICLE_NUMBER` on every row) | always |
-| D | `BRONZE.ET_ART_BROADER_MENU_DATA` | first 10 digits of MATNR: it only holds 10-digit generics (590,059 of 619,218 articles match; the full MATNR would match 5,217) | a chosen name needs it |
-| M | `SILVER.VW_PRODUCT_MASTER` (2 columns only) | `ARTICLE_NUMBER` (= MATNR) | COLOR or SIZE is used |
-| C | `AKS_SILVER.SLV_MIS_STORE_MASTER` | `STORE_CODE = ST_CD` | always |
+| A | `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS` | – | always |
+| P | `V2RETAIL.GOLD.DIM_PRODUCT_V2` | `MATNR` (= its `ARTICLE_NUMBER` on every row) | always |
+| D | `V2RETAIL.BRONZE.ET_ART_BROADER_MENU_DATA` | first 10 digits of MATNR: it only holds 10-digit generics (590,059 of 619,218 articles match; the full MATNR would match 5,217) | a chosen name needs it |
+| M | `V2RETAIL.SILVER.VW_PRODUCT_MASTER` (2 columns only) | `ARTICLE_NUMBER` (= MATNR) | COLOR or SIZE is used |
+| C | `V2RETAIL.AKS_SILVER.SLV_MIS_STORE_MASTER` | `STORE_CODE = ST_CD` | always |
 
 Tested 2026-10-14 as plain SELECTs (the connection used could not create objects): with the M join,
 14,575,961 rows in = 14,575,961 out; the sort parser accepts names, labels, metrics and day columns and
@@ -231,10 +258,10 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 
 | Task | Runs | Calls |
 |---|---|---|
-| `TREND_L30_LOAD` | 07:00 IST (`CRON 0 7 * * * Asia/Kolkata`) | step 1 |
-| `TREND_L30_PIVOT` | after LOAD | step 2 |
-| `TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
-| `TREND_L30_OUTPUTS` | after PIVOT | step 4 (`USP_BUILD_TREND_REPORTS_DAILY`) |
+| `V2RETAIL.SILVER.TREND_L30_LOAD` | 07:00 IST (`CRON 0 7 * * * Asia/Kolkata`) | step 1 |
+| `V2RETAIL.SILVER.TREND_L30_PIVOT` | after LOAD | step 2 |
+| `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
+| `V2RETAIL.SILVER.TREND_L30_OUTPUTS` | after PIVOT | step 4 (`USP_BUILD_TREND_REPORTS_DAILY`) |
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
