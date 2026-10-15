@@ -133,6 +133,8 @@ To bring the views back: re-run 11_ and 12_ (creates the procedures and the task
 [13_USP_TREND_REPORT.sql](snowflake/13_USP_TREND_REPORT.sql) (deploy: run the whole file).
 One procedure for any L30 report: columns, filters, metrics and sort are given **by name**, never as SQL.
 Ready-made calls for all 15 SQL Server reports: [14_trend_report_calls.sql](snowflake/14_trend_report_calls.sql).
+Full how-to with SQL Server → Snowflake mapping, split exports, saving and errors:
+[16_report_guide.sql](snowflake/16_report_guide.sql).
 
 ```sql
 CALL V2RETAIL.SILVER.USP_TREND_REPORT(
@@ -227,6 +229,7 @@ snowflake/
   13_USP_TREND_REPORT.sql                           step 5: TREND_DIMENSIONS (names) + USP_TREND_REPORT
   14_trend_report_calls.sql                         step 5: the 15 SQL Server reports as USP_TREND_REPORT calls
   15_drop_report_views.sql                          one-off: drop step 4 (task TREND_L30_OUTPUTS, 15 views, 2 builder procedures)
+  16_report_guide.sql                               how-to: every SQL Server report as a USP_TREND_REPORT call, with comments
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.
