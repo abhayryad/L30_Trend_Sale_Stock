@@ -135,6 +135,8 @@ One procedure for any L30 report: columns, filters, metrics and sort are given *
 Ready-made calls for all 15 SQL Server reports: [14_trend_report_calls.sql](snowflake/14_trend_report_calls.sql).
 Full how-to with SQL Server → Snowflake mapping, split exports, saving and errors:
 [16_report_guide.sql](snowflake/16_report_guide.sql).
+The 16 MRDC exports are the same reports without STORE_CODE (all active stores added together,
+no DC stock): PART 2B of that file, one call each.
 
 ```sql
 CALL V2RETAIL.SILVER.USP_TREND_REPORT(
@@ -229,7 +231,7 @@ snowflake/
   13_USP_TREND_REPORT.sql                           step 5: TREND_DIMENSIONS (names) + USP_TREND_REPORT
   14_trend_report_calls.sql                         step 5: the 15 SQL Server reports as USP_TREND_REPORT calls
   15_drop_report_views.sql                          one-off: drop step 4 (task TREND_L30_OUTPUTS, 15 views, 2 builder procedures)
-  16_report_guide.sql                               how-to: every SQL Server report as a USP_TREND_REPORT call, with comments
+  16_report_guide.sql                               how-to: every SQL Server report (15 store + 16 MRDC) as a USP_TREND_REPORT call
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.

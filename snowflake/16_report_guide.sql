@@ -4,7 +4,8 @@
 
   What this file is
   -----------------
-  A how-to for the L30 trend reports. Each SQL Server report has a section below:
+  A how-to for the L30 trend reports. Each SQL Server report has a section below
+  (PART 2: the 15 store-level reports, PART 2B: the 16 MRDC all-stores reports):
   what it shows, how SQL Server made it, and the Snowflake CALL that makes the same report.
   Run ONE statement at a time in Snowsight (put the cursor in it, Ctrl+Enter).
   Do not "Run All": that would run every report below and save every example view.
@@ -496,6 +497,242 @@ CALL V2RETAIL.SILVER.USP_TREND_REPORT(
 
 
 /*==============================================================================
+  PART 2B. THE 16 MRDC REPORTS (ALL STORES ADDED TOGETHER)
+================================================================================
+  The MRDC exports are the same procedure as the store reports (USP_MRST_SAL_STK_L30_TREND),
+  only WITHOUT STORE_CODE in the group by: every active store is added into one company total.
+  The SQL Server lines below are copied from the report list given on 2026-10-15
+  (reportData -> fileNames). MRDC means stores only, not DC stock: the procedure keeps
+  ST_STAT = 'ACT' AND ST_TYP = 'STORE' like every other report.
+
+  Rules SQL Server applied, and how they carry over:
+  - Alias contains VAR-ART -> only 13-digit articles (LEN(ARTICLE_NUMBER) = 13).
+    Snowflake: the name VAR_ART does the same.
+  - Alias is exactly 'MERGE_VENDOR_CODE AS [M-VND-CD]' (only MRDC_M_VND_CD) -> SEG APP / GM / MKT.
+    Snowflake: not needed, the main table only holds those three SEGs.
+  - Several MRDC exports kept plain names (SUB_DIV, MAJ_CAT, MC_CODE, GEN_ART_NUMBER) instead of
+    SUB-DIV / MAJ-CAT / MC-CD. The calls rename them back with AS so the Excel columns match.
+
+  Differences from the SQL Server files:
+  - COLOR / SIZE from VW_PRODUCT_MASTER (JET_BLK instead of JET BLACK; NEW_SIZE_DESC instead of
+    SIZE_1): MRDC_TREND_MJ_CLR_WISE, MRDC_TREND_MJ_SIZE_WISE, MRDC_GEN_ART_CLR, MRDC_GEN_ART_SIZE.
+  - Stock about 4% lower (only SEG APP / GM / MKT), GM columns are named _SALE_GM, empty days are 0.
+
+  Row counts (2026-10-15, approximate) are in each header. The four article-level reports
+  (VAR_ARTICLE, GEN_ART, GEN_ART_CLR, GEN_ART_SIZE) are 160k-540k rows x 155 columns: save
+  them as a TABLE (see 2B.17) instead of showing them in Snowsight.
+
+  NOT TESTED as CALLs yet (the connection used to write this cannot run CALL). The same names,
+  labels and rules are used by the store reports in PART 2.
+==============================================================================*/
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.1 MRDC_TREND_MC_WISE                                   (~1,100 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MC_CODE',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MC_CODE AS [MC-CD]'
+-- Columns     SEG, DIV, SUB-DIV, MC-CD
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MC_CODE', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.2 MRDC_TREND_MJ_MRP_RNG_SEG_WISE                       (~15,400 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MRP,REG_SEG',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],MRP [MRP], REG_SEG [RNG-SEG]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, MRP, RNG-SEG
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MRP, RNG_SEG', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MRP, RNG_SEG');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.3 MRDC_TREND_MJ_WISE                                   (~800 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.4 MRDC_TREND_MJ_CLR_WISE                               (~14,900 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,COLOR',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],COLOR [COLOR]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, COLOR
+-- Different   COLOR = VW_PRODUCT_MASTER code (JET_BLK), not DIM_PRODUCT name (JET BLACK)
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, COLOR', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_Q DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.5 MRDC_TREND_MJ_MRP_WISE
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MRP',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],MRP [MRP]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, MRP
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MRP', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MRP');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.6 MRDC_TREND_MJ_FAB_WISE
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,M_FAB_1',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],M_FAB_1 FABRIC'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, FABRIC
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, FABRIC', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.7 MRDC_TREND_MJ_MACRO_MVGR_WISE
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MACRO_MVGR',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],MACRO_MVGR  [MACRO MVGR]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, MACRO MVGR
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MACRO_MVGR', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.8 MRDC_TREND_MJ_MICRO_MVGR_WISE
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MAIN_MVGR',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT], MAIN_MVGR  [MICRO MVGR]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, MICRO MVGR
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MICRO_MVGR', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.9 MRDC_TREND_MJ_RNG_SEG_WISE
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,REG_SEG',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT], REG_SEG [RNG-SEG]'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, RNG-SEG
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, RNG_SEG', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, RNG_SEG');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.10 MRDC_TREND_MJ_SIZE_WISE                             (~3,500 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,SIZE_1',
+--                  'SEG AS SEG,DIV AS DIV,SUB_DIV AS [SUB-DIV],MAJ_CAT [MAJ-CAT],SIZE_1 AS SIZE'
+-- Columns     SEG, DIV, SUB-DIV, MAJ-CAT, SIZE
+-- Different   SIZE = VW_PRODUCT_MASTER.NEW_SIZE_DESC, not DIM_PRODUCT.SIZE_1
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SIZE', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_Q DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.11 MRDC_M_VND_CD                                       (~1,800 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'MERGE_VENDOR_CODE','MERGE_VENDOR_CODE AS [M-VND-CD]',''
+--             (this exact alias made SQL Server add SEG IN ('APP','GM','MKT'))
+-- Columns     M-VND-CD
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'M_VND_CD', '', '', '', 'VIEW',
+    'SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.12 MRDC_VAR_ARTICLE                                    (~543,000 rows: save as TABLE)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,ARTICLE_NUMBER',
+--                  'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,ARTICLE_NUMBER AS [VAR-ART]',''
+--             (VAR-ART in the alias made SQL Server keep 13-digit articles only)
+-- Columns     SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, VAR-ART
+-- Note        VAR_ART is the article number of the main table (= DIM_PRODUCT ARTICLE_NUMBER),
+--             13-digit only. Plain labels SUB_DIV / MAJ_CAT / MC_CODE, as in the SQL Server file.
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV AS SUB_DIV, MAJ_CAT AS MAJ_CAT, MC_CODE AS MC_CODE, VAR_ART',
+    '', '',
+    'V2RETAIL.SILVER.T_MRDC_VAR_ARTICLE', 'TABLE',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.13 MRDC_GEN_ART                                        (~160,000 rows: save as TABLE)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER',
+--                  'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER AS GEN_ART_NUMBER',''
+-- Columns     SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, GEN_ART_NUMBER
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV AS SUB_DIV, MAJ_CAT AS MAJ_CAT, MC_CODE AS MC_CODE, GEN_ART AS GEN_ART_NUMBER',
+    '', '',
+    'V2RETAIL.SILVER.T_MRDC_GEN_ART', 'TABLE',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.14 MRDC_GEN_ART_CLR                                    (~206,000 rows: save as TABLE)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER,COLOR',
+--                  'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER AS GEN_ART_NUMBER,COLOR AS [COLOR]',''
+-- Columns     SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, GEN_ART_NUMBER, COLOR
+-- Different   COLOR = VW_PRODUCT_MASTER code (JET_BLK), not DIM_PRODUCT name (JET BLACK)
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV AS SUB_DIV, MAJ_CAT AS MAJ_CAT, MC_CODE AS MC_CODE, GEN_ART AS GEN_ART_NUMBER, COLOR',
+    '', '',
+    'V2RETAIL.SILVER.T_MRDC_GEN_ART_CLR', 'TABLE',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.15 MRDC_GEN_ART_SIZE                                   (~424,000 rows: save as TABLE)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER,SIZE_1',
+--                  'SEG,DIV,SUB_DIV,MAJ_CAT,MC_CODE,GEN_ART_NUMBER AS GEN_ART_NUMBER,SIZE_1 AS [SIZE]',''
+-- Columns     SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, GEN_ART_NUMBER, SIZE
+-- Different   SIZE = VW_PRODUCT_MASTER.NEW_SIZE_DESC, not DIM_PRODUCT.SIZE_1
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV AS SUB_DIV, MAJ_CAT AS MAJ_CAT, MC_CODE AS MC_CODE, GEN_ART AS GEN_ART_NUMBER, SIZE',
+    '', '',
+    'V2RETAIL.SILVER.T_MRDC_GEN_ART_SIZE', 'TABLE',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, MC_CODE, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.16 MRDC_MAJ_CAT_M_VND_CD                               (~11,300 rows)
+-- -----------------------------------------------------------------------------
+-- SQL Server  EXEC USP_MRST_SAL_STK_L30_TREND 'SEG,DIV,SUB_DIV,MAJ_CAT,MERGE_VENDOR_CODE',
+--                  'SEG,DIV,SUB_DIV,MAJ_CAT AS [MAJ-CAT],MERGE_VENDOR_CODE AS [M-VND-CD]',''
+-- Columns     SEG, DIV, SUB_DIV, MAJ-CAT, M-VND-CD   (SUB_DIV plain, MAJ-CAT with hyphen, as in SQL Server)
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV AS SUB_DIV, MAJ_CAT, M_VND_CD', '', '', '', 'VIEW',
+    'SEG, DIV, SUB_DIV, MAJ_CAT, SALE_V DESC');
+
+
+-- -----------------------------------------------------------------------------
+-- 2B.17 Saving any MRDC report
+-- -----------------------------------------------------------------------------
+-- Any call above can be saved: put a name in argument 4 and TABLE (or VIEW) in argument 5,
+-- e.g. MRDC_TREND_MJ_WISE as a table for Excel:
+CALL V2RETAIL.SILVER.USP_TREND_REPORT(
+    'SEG, DIV, SUB_DIV, MAJ_CAT', '', '',
+    'V2RETAIL.SILVER.T_MRDC_TREND_MJ_WISE', 'TABLE',
+    'SEG, DIV, SUB_DIV, SALE_V DESC');
+-- A TABLE stays on the day it was made: run the CALL again after the 07:00 IST load.
+-- Read it:   SELECT * FROM V2RETAIL.SILVER.T_MRDC_TREND_MJ_WISE;
+-- Check it:  its SUM("<day>_SALE_V") equals the active-store total in 4.5 below.
+
+
+/*==============================================================================
   PART 3. VARIATIONS THE SQL SERVER PROCEDURE ALSO ALLOWED
 ==============================================================================*/
 
@@ -506,7 +743,8 @@ CALL V2RETAIL.SILVER.USP_TREND_REPORT(
     '', '', 'VIEW',
     'STORE_CODE, SALE_V DESC');
 
--- 3.2 Company level / MRDC: leave STORE_CODE out and all stores are added together
+-- 3.2 Company level: leave STORE_CODE out and all active stores are added together.
+--     The 16 MRDC reports in PART 2B are built this way.
 CALL V2RETAIL.SILVER.USP_TREND_REPORT(
     'SEG, DIV, SUB_DIV, MAJ_CAT', '', '', '', 'VIEW',
     'SEG, DIV, SUB_DIV, SALE_V DESC');
