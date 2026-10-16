@@ -1,5 +1,5 @@
 -- V_TREND_AVG_PSF: TREND_AVG + space-plan density/APF, with per-day area KPIs.
---   PPA (per piece area, sq ft) = APF / FINAL DENSITY
+--   PPA = FINAL DENSITY / APF
 --   FINAL_AREA_<date> = STK_Q * PPA
 --   SALE_PSF_<date>   = SALE_V / FINAL_AREA
 --   GP_PSF_<date>     = SALE_GM / FINAL_AREA
@@ -18,7 +18,7 @@ WITH SP AS (
 BASE AS (
     SELECT COALESCE(D."FINAL DENSITY", 0) AS FINAL_DENSITY,
            COALESCE(S.APF, 0)             AS APF,
-           COALESCE(DIV0NULL(S.APF, D."FINAL DENSITY"), 0) AS PPA,
+           COALESCE(DIV0NULL(D."FINAL DENSITY", S.APF), 0) AS PPA,
            A.*
     FROM V2RETAIL.SILVER.TREND_AVG A
     LEFT JOIN SP S
