@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="1080" viewBox="0 0 1300 1080" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5F6368"/></marker>
+<style>.name{font:600 14px Consolas, 'Courier New', monospace;fill:#202124;text-anchor:middle}.sub{font-size:12px;fill:#5F6368;text-anchor:middle}.tag{font-size:10.5px;font-weight:600;fill:#3C4043;text-anchor:middle}.edge{stroke:#5F6368;stroke-width:1.6;fill:none}.elabel{font-size:12px;fill:#5F6368}.col{font-size:13px;font-weight:600;fill:#1A73E8}.title{font-size:22px;font-weight:700;fill:#202124}.subtitle{font-size:13px;fill:#5F6368}.leg{font-size:12px;fill:#3C4043}</style>
+</defs>
+<rect width="1300" height="1080" fill="#FFFFFF"/>
+<text x="40" y="44" class="title">MRDC (all stores) PSF view chain</text>
+<text x="40" y="68" class="subtitle">Article PSF across all stores compared with its all-stores MAJ-CAT PSF, then banded into ARTICLE_HV</text>
+<rect x="420.0" y="100" width="460" height="62" rx="8" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.6"/>
+<text x="650" y="126" class="name">TREND_KPI_DATA</text>
+<text x="650" y="147" class="sub">table · one row per article × store × day × KPI</text>
+<path d="M650 162 L650 200" class="edge" marker-end="url(#ah)"/>
+<rect x="420.0" y="200" width="460" height="62" rx="8" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.6"/>
+<text x="650" y="226" class="name">PROCESS_DATA_SALE_STK_L30_DAYS</text>
+<text x="650" y="247" class="sub">table · 31 days × 5 KPIs as columns · rebuilt daily 07:00 IST</text>
+<path d="M650 262 L650 301.0 L300 301.0 L300 340" class="edge" fill="none" marker-end="url(#ah)"/>
+<path d="M650 262 L650 301.0 L1000 301.0 L1000 340" class="edge" fill="none" marker-end="url(#ah)"/>
+<text x="288" y="322" class="col" text-anchor="end">Article branch (MATNR, all stores)</text>
+<text x="1012" y="322" class="col" text-anchor="start">MAJ-CAT branch (MAJ-CAT, all stores)</text>
+<rect x="70.0" y="340" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="300" y="366" class="name">V_MRDC_TREND_30_DAYS_GRID</text>
+<text x="300" y="387" class="sub">article, all stores · 31 days</text>
+<rect x="412.0" y="329" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
+<text x="468.0" y="343" class="tag">dates hard-coded</text>
+<rect x="76.0" y="329" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
+<text x="119.0" y="343" class="tag">not in repo</text>
+<path d="M300 402 L300 450" class="edge" marker-end="url(#ah)"/>
+<rect x="70.0" y="450" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="300" y="476" class="name">V_MRDC_TREND_30_DAYS_GRID_PSF</text>
+<text x="300" y="497" class="sub">(24) + PPA, daily area / Sale PSF / GP PSF / STR</text>
+<rect x="412.0" y="439" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
+<text x="468.0" y="453" class="tag">dates hard-coded</text>
+<path d="M300 512 L300 560" class="edge" marker-end="url(#ah)"/>
+<rect x="70.0" y="560" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="300" y="586" class="name">V_MRDC_TREND_30_DAYS_GRID_PSF_SUMMARY</text>
+<text x="300" y="607" class="sub">(26) MTD / L7D / 30D / TD averages only</text>
+<rect x="770.0" y="340" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="1000" y="366" class="name">V_MRDC_TREND_MAJ_CAT_30_DAYS_GRID</text>
+<text x="1000" y="387" class="sub">MAJ-CAT, all stores · 31 days</text>
+<rect x="1112.0" y="329" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
+<text x="1168.0" y="343" class="tag">dates hard-coded</text>
+<rect x="776.0" y="329" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
+<text x="819.0" y="343" class="tag">not in repo</text>
+<path d="M1000 402 L1000 450" class="edge" marker-end="url(#ah)"/>
+<rect x="770.0" y="450" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="1000" y="476" class="name">V_MRDC_TREND_MAJ_CAT_30_DAYS_GRID_PSF</text>
+<text x="1000" y="497" class="sub">(25) + PPA, daily area / Sale PSF / GP PSF / STR</text>
+<rect x="1112.0" y="439" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
+<text x="1168.0" y="453" class="tag">dates hard-coded</text>
+<path d="M1000 512 L1000 560" class="edge" marker-end="url(#ah)"/>
+<rect x="770.0" y="560" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="1000" y="586" class="name">V_MRDC_TREND_MAJ_CAT_30_DAYS_GRID_PSF_SUMMARY</text>
+<text x="1000" y="607" class="sub">(26) MTD / L7D / 30D / TD averages only</text>
+<rect x="550.0" y="448" width="200" height="62" rx="8" fill="#E6F4EA" stroke="#188038" stroke-width="1.6"/>
+<text x="650" y="474" class="name">SPACE_PLAN</text>
+<text x="650" y="495" class="sub">avg density / APF 22</text>
+<path d="M550.0 481.0 L530.0 481.0" class="edge" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<path d="M750.0 481.0 L770.0 481.0" class="edge" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<path d="M300 622 L300 661.0 L590 661.0 L590 700" class="edge" fill="none" marker-end="url(#ah)"/>
+<path d="M1000 622 L1000 661.0 L710 661.0 L710 700" class="edge" fill="none" marker-end="url(#ah)"/>
+<rect x="420.0" y="700" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="650" y="726" class="name">V_MRDC_ARTICLE_MAJCAT_PSF</text>
+<text x="650" y="747" class="sub">(27) LEFT JOIN on MAJ-CAT</text>
+<path d="M650 762 L650 800" class="edge" marker-end="url(#ah)"/>
+<rect x="420.0" y="800" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="650" y="826" class="name">V_MRDC_ARTICLE_MAJCAT_PSF_ACH</text>
+<text x="650" y="847" class="sub">(28) achievement % = article PSF / MAJ-CAT PSF</text>
+<path d="M650 862 L650 900" class="edge" marker-end="url(#ah)"/>
+<rect x="420.0" y="900" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="650" y="926" class="name">V_MRDC_ARTICLE_HV</text>
+<text x="650" y="947" class="sub">(29) ARTICLE_HV band: D / VV / V / N / H / HH / G / NA</text>
+<rect x="40" y="1010" width="26" height="16" rx="4" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.4"/>
+<text x="74" y="1023" class="leg">table</text>
+<rect x="142.5" y="1010" width="26" height="16" rx="4" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.4"/>
+<text x="176.5" y="1023" class="leg">view</text>
+<rect x="238.5" y="1010" width="26" height="16" rx="4" fill="#E6F4EA" stroke="#188038" stroke-width="1.4"/>
+<text x="272.5" y="1023" class="leg">space-plan input (AKS_GOLD)</text>
+<rect x="484.0" y="1009" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
+<text x="540.0" y="1023" class="tag">dates hard-coded</text>
+<text x="606.0" y="1023" class="leg">column names fixed to 2026-09-15 … 2026-10-15</text>
+<rect x="934.0" y="1009" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
+<text x="977.0" y="1023" class="tag">not in repo</text>
+<text x="1030.0" y="1023" class="leg">made by a USP_TREND_REPORT call</text>
+<text x="40" y="1056" class="leg">Numbers in brackets are the files in snowflake/. As of 2026-10-17.</text>
+</svg>

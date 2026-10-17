@@ -210,6 +210,21 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 - Change the time: suspend `TREND_L30_LOAD`, `ALTER TASK … SET SCHEDULE`, resume it.
   A task chain can only be changed while its first task is suspended.
 
+## PSF view chains (files 18–29)
+
+Two branches per chain, both reading `PROCESS_DATA_SALE_STK_L30_DAYS`: article PSF on the left,
+MAJ-CAT PSF on the right. They meet in one join, then achievement % and the ARTICLE_HV band.
+The base grid views and the PSF views name their date columns, so they break when the daily task
+moves the 31-day window (dates fixed to 2026-09-15 … 2026-10-15 as of 2026-10-17).
+
+**Store:** article × store vs store + MAJ-CAT
+
+![Store PSF view chain](docs/diagrams/psf_chain_store.svg)
+
+**MRDC:** article vs MAJ-CAT, all stores
+
+![MRDC PSF view chain](docs/diagrams/psf_chain_mrdc.svg)
+
 ## Files
 
 ```
