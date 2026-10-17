@@ -197,12 +197,19 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 
 | Task | Runs | Calls |
 |---|---|---|
-| `V2RETAIL.SILVER.TREND_L30_LOAD` | 07:00 IST (`CRON 0 7 * * * Asia/Kolkata`) | step 1 |
+| `V2RETAIL.SILVER.TREND_L30_LOAD` | hourly 07:00–12:00 IST (`CRON 0 7-12 * * * Asia/Kolkata`) | step 1 |
 | `V2RETAIL.SILVER.TREND_L30_PIVOT` | after LOAD | step 2 |
 | `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
 | `V2RETAIL.SILVER.TREND_L30_PSF_VIEWS` | after MAJ_CAT | `USP_REBUILD_PSF_VIEWS` (PSF views on today's days, file 30) |
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
+- **Late sales (2026-10-17):** that day VBRP had no FP sales for 10-16 at 07:00 IST (they arrived
+  08:00–09:00), so the 07:00 run loaded stock without sales and every TD PSF was 0. Now the chain starts
+  hourly 07:00–12:00: step 1 fails (tables untouched) while VBRP has no FP sales for yesterday, and
+  the next hour retries; once a run has finished, steps 1 and 2 skip for the rest of the day
+  (MAJ_CAT and PSF_VIEWS re-run hourly, about 1 minute). Set up by
+  [31_late_sales_retry.sql](snowflake/31_late_sales_retry.sql). Hourly FAILED rows in the task history
+  before the sales arrive are expected.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
 - Tasks were renamed on 2026-10-13 from `T_L30D_*`. **First run checked 2026-10-14:** LOAD 07:00–07:01,
   PIVOT 07:01–07:12, MAJ_CAT and OUTPUTS done by 07:12; all 8 views re-created, ending at 2026-10-13, and
@@ -260,6 +267,7 @@ snowflake/
   23_v_article_hv.sql                               ARTICLE_HV band
   26_ … 29_                                         the same four for MRDC (all stores)
   30_USP_REBUILD_PSF_VIEWS.sql                      daily rebuild of the 8 per-day PSF-chain views + task TREND_L30_PSF_VIEWS
+  31_late_sales_retry.sql                           one-off: hourly 07:00-12:00 schedule (wait for yesterday's sales)
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.

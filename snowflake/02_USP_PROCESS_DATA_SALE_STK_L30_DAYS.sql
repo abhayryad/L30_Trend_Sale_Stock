@@ -12,6 +12,9 @@
 --
 -- "Today" is taken in India time (Asia/Kolkata), same as step 1; see the note there.
 --
+-- Skips (rebuilds nothing) when the table already has yesterday's sales, i.e. an earlier hourly
+-- run today finished (added 2026-10-17, see step 1). So the pivot runs once a day.
+--
 -- SEG, DIV, SUB_DIV, MAJ_CAT (added 2026-10-13): taken from GOLD.DIM_PRODUCT_V2 for every MATNR,
 -- so step 2b can roll up to SEG x DIV x SUB_DIV x MAJ_CAT x STORE_CODE. Blank values become 'NA'.
 -- DIM_PRODUCT_V2 has one row per article (checked 2026-10-13); the QUALIFY guards against
@@ -31,7 +34,28 @@ DECLARE
     dt1  DATE DEFAULT DATEADD(DAY, -31, CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::DATE);
     cols     VARCHAR;
     sql_text VARCHAR;
+    dt2_col  VARCHAR DEFAULT TO_CHAR(DATEADD(DAY, -1, CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::DATE), 'YYYY-MM-DD') || '_SALE_V';
+    n_col    INTEGER DEFAULT 0;
+    done_val NUMBER(38,4) DEFAULT 0;
+    rs       RESULTSET;
 BEGIN
+    -- Already done today? (same check as step 1)
+    SELECT COUNT(*) INTO :n_col
+    FROM V2RETAIL.INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'SILVER'
+      AND TABLE_NAME   = 'PROCESS_DATA_SALE_STK_L30_DAYS'
+      AND COLUMN_NAME  = :dt2_col;
+    IF (n_col > 0) THEN
+        rs := (EXECUTE IMMEDIATE 'SELECT COALESCE(SUM("' || dt2_col || '"), 0) AS V FROM V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS');
+        LET c1 CURSOR FOR rs;
+        OPEN c1;
+        FETCH c1 INTO done_val;
+        CLOSE c1;
+    END IF;
+    IF (done_val > 0) THEN
+        RETURN 'Skipped: PROCESS_DATA_SALE_STK_L30_DAYS already has ' || dt2_col;
+    END IF;
+
     -- Build the 155 column expressions: one per day x metric
     SELECT LISTAGG(
              'COALESCE(SUM(IFF(T.DATES = ''' || TO_CHAR(d, 'YYYY-MM-DD') || ''' AND T.PARTICULARS_NAME = ''' || m ||

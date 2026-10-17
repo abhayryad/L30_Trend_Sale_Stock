@@ -20,6 +20,14 @@
 -- "Today" is taken in India time (Asia/Kolkata). Snowflake's CURRENT_DATE() follows the
 -- session timezone, which is often US Pacific by default; SQL Server's GETDATE() used the
 -- server's local (IST) clock. Step 2 uses the same expression so both steps agree.
+--
+-- Late sales (added 2026-10-17): on 2026-10-17 VBRP had no FP sales for 10-16 at 07:00 IST (they
+-- arrived between 08:00 and 09:00), so the 07:00 run loaded stock without sales and every
+-- "today" PSF value was 0. Now the task runs hourly 07:00-12:00 IST and this procedure:
+--   - skips (returns, loads nothing) when PROCESS_DATA_SALE_STK_L30_DAYS already has yesterday's
+--     sales, i.e. an earlier run today finished; step 2 skips too, so the big pivot runs once a day;
+--   - fails before touching anything when VBRP has no FP sales for yesterday yet. A failed task
+--     stops the tasks after it, so yesterday's tables stay as they are; the next hourly run retries.
 
 CREATE OR REPLACE PROCEDURE V2RETAIL.SILVER.USP_GENERATE_L30D_STK_SALE_VQ_MRST()
 RETURNS VARCHAR
@@ -32,7 +40,39 @@ DECLARE
     -- Same dates as 'YYYYMMDD' text, to filter VBRP.FKDAT_ANA directly (see sales part)
     dt1_txt VARCHAR DEFAULT TO_CHAR(DATEADD(DAY, -31, CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::DATE), 'YYYYMMDD');
     dt2_txt VARCHAR DEFAULT TO_CHAR(DATEADD(DAY, -1,  CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::DATE), 'YYYYMMDD');
+    -- Yesterday's sales column in the main table, e.g. "2026-10-16_SALE_V"
+    dt2_col  VARCHAR DEFAULT TO_CHAR(DATEADD(DAY, -1, CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::DATE), 'YYYY-MM-DD') || '_SALE_V';
+    n_col    INTEGER DEFAULT 0;
+    done_val NUMBER(38,4) DEFAULT 0;
+    n_fp     INTEGER DEFAULT 0;
+    rs       RESULTSET;
+    no_sales EXCEPTION (-20301, 'VBRP has no FP sales for yesterday yet: nothing reloaded, yesterday''s tables stay. The next hourly run tries again.');
 BEGIN
+    -- Already done today? (the main table already has yesterday's sales)
+    SELECT COUNT(*) INTO :n_col
+    FROM V2RETAIL.INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'SILVER'
+      AND TABLE_NAME   = 'PROCESS_DATA_SALE_STK_L30_DAYS'
+      AND COLUMN_NAME  = :dt2_col;
+    IF (n_col > 0) THEN
+        rs := (EXECUTE IMMEDIATE 'SELECT COALESCE(SUM("' || dt2_col || '"), 0) AS V FROM V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS');
+        LET c1 CURSOR FOR rs;
+        OPEN c1;
+        FETCH c1 INTO done_val;
+        CLOSE c1;
+    END IF;
+    IF (done_val > 0) THEN
+        RETURN 'Skipped: PROCESS_DATA_SALE_STK_L30_DAYS already has ' || dt2_col;
+    END IF;
+
+    -- Yesterday's sales not in VBRP yet: stop before TREND_KPI_DATA is emptied
+    SELECT COUNT(*) INTO :n_fp
+    FROM V2RETAIL.BRONZE.VBRP
+    WHERE FKDAT_ANA = :dt2_txt AND FKART_ANA = 'FP';
+    IF (n_fp = 0) THEN
+        RAISE no_sales;
+    END IF;
+
     TRUNCATE TABLE V2RETAIL.SILVER.TREND_KPI_DATA;
 
     -- Stock: STK_V and STK_Q

@@ -1,9 +1,14 @@
 -- Daily automation: Task 1 runs on a schedule, each next task runs as soon as the previous one succeeds.
---   TREND_L30_LOAD    07:00 IST   -> USP_GENERATE_L30D_STK_SALE_VQ_MRST         (fills TREND_KPI_DATA)
+--   TREND_L30_LOAD    hourly 07:00-12:00 IST -> USP_GENERATE_L30D_STK_SALE_VQ_MRST (fills TREND_KPI_DATA)
 --   TREND_L30_PIVOT   after LOAD  -> USP_PROCESS_DATA_SALE_STK_L30_DAYS         (rebuilds PROCESS_DATA_SALE_STK_L30_DAYS)
 --   TREND_L30_MAJ_CAT  after PIVOT -> USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT  (rebuilds PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT)
 --   TREND_L30_PSF_VIEWS after MAJ_CAT -> USP_REBUILD_PSF_VIEWS                   (PSF-chain views on today's days, 30_)
 -- If a task fails, the ones after it do not run, so yesterday's tables stay in place.
+--
+-- Hourly 07:00-12:00 (2026-10-17): LOAD fails while VBRP has no FP sales for yesterday, and the
+-- next hour retries. Once a run has finished, LOAD and PIVOT skip for the rest of the day; MAJ_CAT
+-- and PSF_VIEWS still run each hour (about 1 minute together). No sales by 12:00 = yesterday's
+-- tables stay for that day.
 --
 -- Time: on 2026-10-09 the sources were last updated at 03:57 IST (BRONZE.VBRP) and
 -- 05:02 IST (BRONZE.ET_STOCK_DATA), so 07:00 IST leaves about 2 hours of margin.
@@ -19,7 +24,7 @@ USE ROLE PROGRAMMER_DEV_ROLE;   -- owner of the deployed tasks (all tasks in one
 
 CREATE OR REPLACE TASK V2RETAIL.SILVER.TREND_L30_LOAD
     WAREHOUSE = COMPUTE_WH
-    SCHEDULE  = 'USING CRON 0 7 * * * Asia/Kolkata'
+    SCHEDULE  = 'USING CRON 0 7-12 * * * Asia/Kolkata'
     COMMENT   = 'L30D step 1: load TREND_KPI_DATA (stock + sales, last 31 days)'
 AS
     CALL V2RETAIL.SILVER.USP_GENERATE_L30D_STK_SALE_VQ_MRST();
