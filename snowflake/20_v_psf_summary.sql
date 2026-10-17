@@ -1,5 +1,5 @@
 -- PSF summary views: the left-hand block of each PSF view, up to and including the STR averages.
--- No per-day columns. Run 18_v_trend_30_days_grid_psf.sql and 19_v_maj_cat_trend_psf.sql first.
+-- No per-day columns. Their source views are rebuilt daily by USP_REBUILD_PSF_VIEWS (30_USP_REBUILD_PSF_VIEWS.sql).
 --   dimensions, FINAL_DENSITY, APF, PPA,
 --   SALE_PSF / GP_PSF / STR averages for MTD, L7D, 30D and TD (same order as the source views)
 

@@ -200,6 +200,7 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 | `V2RETAIL.SILVER.TREND_L30_LOAD` | 07:00 IST (`CRON 0 7 * * * Asia/Kolkata`) | step 1 |
 | `V2RETAIL.SILVER.TREND_L30_PIVOT` | after LOAD | step 2 |
 | `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
+| `V2RETAIL.SILVER.TREND_L30_PSF_VIEWS` | after MAJ_CAT | `USP_REBUILD_PSF_VIEWS` (PSF views on today's days, file 30) |
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
@@ -210,12 +211,17 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 - Change the time: suspend `TREND_L30_LOAD`, `ALTER TASK … SET SCHEDULE`, resume it.
   A task chain can only be changed while its first task is suspended.
 
-## PSF view chains (files 18–29)
+## PSF view chains (files 20–30)
 
 Two branches per chain, both reading `PROCESS_DATA_SALE_STK_L30_DAYS`: article PSF on the left,
 MAJ-CAT PSF on the right. They meet in one join, then achievement % and the ARTICLE_HV band.
-The base grid views and the PSF views name their date columns, so they break when the daily task
-moves the 31-day window (dates fixed to 2026-09-15 … 2026-10-15 as of 2026-10-17).
+
+The base grid views and the PSF views have one column per day, so they are re-created every day by
+`USP_REBUILD_PSF_VIEWS` ([30_USP_REBUILD_PSF_VIEWS.sql](snowflake/30_USP_REBUILD_PSF_VIEWS.sql)),
+task `TREND_L30_PSF_VIEWS`. The days are read from the main table's columns; with D = its last day:
+MTD = 1st of D's month … D, L7D = D-6 … D, 30D = D-29 … D, TD = D. Until 2026-10-17 these views were
+hard-coded to 2026-09-15 … 2026-10-15 (files 18, 19, 24, 25, now removed) and broke when the window moved.
+The views of files 20–23 and 26–29 name no days and are not re-created.
 
 **Store:** article × store vs store + MAJ-CAT
 
@@ -247,6 +253,13 @@ snowflake/
   14_trend_report_calls.sql                         step 5: the 15 SQL Server reports as USP_TREND_REPORT calls
   15_drop_report_views.sql                          one-off: drop step 4 (task TREND_L30_OUTPUTS, 15 views, 2 builder procedures)
   16_report_guide.sql                               how-to: every SQL Server report (15 store + 16 MRDC) as a USP_TREND_REPORT call
+  17_v_trend_avg_psf.sql                            V_TREND_AVG_PSF (on TREND_AVG, days still hard-coded)
+  20_v_psf_summary.sql                              store PSF summaries (article, store × MAJ-CAT)
+  21_v_article_majcat_psf.sql                       article PSF next to its store + MAJ-CAT PSF
+  22_v_article_majcat_psf_ach.sql                   achievement %
+  23_v_article_hv.sql                               ARTICLE_HV band
+  26_ … 29_                                         the same four for MRDC (all stores)
+  30_USP_REBUILD_PSF_VIEWS.sql                      daily rebuild of the 8 per-day PSF-chain views + task TREND_L30_PSF_VIEWS
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.

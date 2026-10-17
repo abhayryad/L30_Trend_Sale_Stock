@@ -19,34 +19,30 @@
 <text x="1012" y="322" class="col" text-anchor="start">MAJ-CAT branch (store × MAJ-CAT)</text>
 <rect x="70.0" y="340" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="300" y="366" class="name">V_TREND_30_DAYS_GRID</text>
-<text x="300" y="387" class="sub">article × store · 31 days</text>
-<rect x="412.0" y="329" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
-<text x="468.0" y="343" class="tag">dates hard-coded</text>
-<rect x="76.0" y="329" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
-<text x="119.0" y="343" class="tag">not in repo</text>
+<text x="300" y="387" class="sub">(30) USP_TREND_REPORT · article × store · 31 days</text>
+<rect x="412.0" y="329" width="112" height="20" rx="10" fill="#E6F4EA" stroke="#188038"/>
+<text x="468.0" y="343" class="tag">rebuilt daily</text>
 <path d="M300 402 L300 450" class="edge" marker-end="url(#ah)"/>
 <rect x="70.0" y="450" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="300" y="476" class="name">V_TREND_30_DAYS_GRID_PSF</text>
-<text x="300" y="497" class="sub">(18) + PPA, daily area / Sale PSF / GP PSF / STR</text>
-<rect x="412.0" y="439" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
-<text x="468.0" y="453" class="tag">dates hard-coded</text>
+<text x="300" y="497" class="sub">(30) + PPA, daily area / Sale PSF / GP PSF / STR</text>
+<rect x="412.0" y="439" width="112" height="20" rx="10" fill="#E6F4EA" stroke="#188038"/>
+<text x="468.0" y="453" class="tag">rebuilt daily</text>
 <path d="M300 512 L300 560" class="edge" marker-end="url(#ah)"/>
 <rect x="70.0" y="560" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="300" y="586" class="name">V_TREND_30_DAYS_GRID_PSF_SUMMARY</text>
 <text x="300" y="607" class="sub">(20) MTD / L7D / 30D / TD averages only</text>
 <rect x="770.0" y="340" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="1000" y="366" class="name">V_MAJ_CAT_TREND</text>
-<text x="1000" y="387" class="sub">store × MAJ-CAT · 31 days</text>
-<rect x="1112.0" y="329" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
-<text x="1168.0" y="343" class="tag">dates hard-coded</text>
-<rect x="776.0" y="329" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
-<text x="819.0" y="343" class="tag">not in repo</text>
+<text x="1000" y="387" class="sub">(30) USP_TREND_REPORT · store × MAJ-CAT · 31 days</text>
+<rect x="1112.0" y="329" width="112" height="20" rx="10" fill="#E6F4EA" stroke="#188038"/>
+<text x="1168.0" y="343" class="tag">rebuilt daily</text>
 <path d="M1000 402 L1000 450" class="edge" marker-end="url(#ah)"/>
 <rect x="770.0" y="450" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="1000" y="476" class="name">V_MAJ_CAT_TREND_PSF</text>
-<text x="1000" y="497" class="sub">(19) + PPA, daily area / Sale PSF / GP PSF / STR</text>
-<rect x="1112.0" y="439" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
-<text x="1168.0" y="453" class="tag">dates hard-coded</text>
+<text x="1000" y="497" class="sub">(30) + PPA, daily area / Sale PSF / GP PSF / STR</text>
+<rect x="1112.0" y="439" width="112" height="20" rx="10" fill="#E6F4EA" stroke="#188038"/>
+<text x="1168.0" y="453" class="tag">rebuilt daily</text>
 <path d="M1000 512 L1000 560" class="edge" marker-end="url(#ah)"/>
 <rect x="770.0" y="560" width="460" height="62" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
 <text x="1000" y="586" class="name">V_MAJ_CAT_TREND_PSF_SUMMARY</text>
@@ -75,11 +71,8 @@
 <text x="176.5" y="1023" class="leg">view</text>
 <rect x="238.5" y="1010" width="26" height="16" rx="4" fill="#E6F4EA" stroke="#188038" stroke-width="1.4"/>
 <text x="272.5" y="1023" class="leg">space-plan input (AKS_GOLD)</text>
-<rect x="484.0" y="1009" width="112" height="20" rx="10" fill="#FEF3C7" stroke="#D97706"/>
-<text x="540.0" y="1023" class="tag">dates hard-coded</text>
-<text x="606.0" y="1023" class="leg">column names fixed to 2026-09-15 … 2026-10-15</text>
-<rect x="934.0" y="1009" width="86" height="20" rx="10" fill="#FCE8E6" stroke="#D93025"/>
-<text x="977.0" y="1023" class="tag">not in repo</text>
-<text x="1030.0" y="1023" class="leg">made by a USP_TREND_REPORT call</text>
-<text x="40" y="1056" class="leg">Numbers in brackets are the files in snowflake/. As of 2026-10-17.</text>
+<rect x="484.0" y="1009" width="112" height="20" rx="10" fill="#E6F4EA" stroke="#188038"/>
+<text x="540.0" y="1023" class="tag">rebuilt daily</text>
+<text x="606.0" y="1023" class="leg">re-created by USP_REBUILD_PSF_VIEWS (30) on the last 31 days of the main table</text>
+<text x="40" y="1056" class="leg">Numbers in brackets are the files in snowflake/.</text>
 </svg>
