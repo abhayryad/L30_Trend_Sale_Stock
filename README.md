@@ -292,9 +292,53 @@ return value (`TASK_HISTORY.RETURN_VALUE`). Range names (`JUL_SEP`, …) never m
 
 **Still open (2026-10-17):** the 18 old PSF-chain views, `USP_REBUILD_PSF_VIEWS` and task `TREND_L30_PSF_VIEWS`
 stay for a while (user decision); drop them later with [33_drop_old_psf_views.sql](snowflake/33_drop_old_psf_views.sql)
-and tell ad-hoc readers (SHUBHAM_SVC, UNIVERSAL_MCP_SVC) to use `MRST_ST_ART_TREND` / `MRDC_ART_TREND`. Subreports on other columns (M_FAB, COLOR, M_FIT, …) were set aside by the user.
+and tell ad-hoc readers (SHUBHAM_SVC, UNIVERSAL_MCP_SVC) to use `MRST_ST_ART_TREND` / `MRDC_ART_TREND`.
 On the 1st of a month the space plan switches to the new month while the data's last day is still the
 previous month.
+
+### Status 2026-10-17 (data up to 2026-10-16, space plan `SPACE_PLAN_OCT_20261007_142428`)
+
+| Table | Rows | Columns | Size | Built (IST) |
+|---|---|---|---|---|
+| `STORE_ARTICLE_GRID_TREND` | 14,784,593 | 299 | 3.30 GB | 13:50–13:52 |
+| `MRST_ST_MAJ_CAT_TREND` | 180,361 | 299 | 0.17 GB | 13:52 (9 s) |
+| `MRDC_MAJ_CAT_TREND` | 794 | 298 | < 0.01 GB | 13:52 (6 s) |
+| `MRST_ST_ART_TREND` | 14,784,593 | 459 | 4.81 GB | 13:52–13:54 |
+| `MRDC_ART_TREND` | 550,968 | 458 | 0.31 GB | 13:54–13:57 |
+
+- Whole build (`CALL`, run by hand): 7 min. Task `TREND_L30_GRID` is created and started; its first automatic
+  run is on 2026-10-18 (07:00–12:00 window, after PIVOT).
+- Compared with the old views: **0 differences** (ARTICLE_HV, SALE / GP PSF and STR averages, MAJCAT benchmark,
+  achievement, PPA; all rows matched).
+- ARTICLE_HV spread:
+
+  | Band | G | HH | H | N | V | VV | D | NA |
+  |---|---|---|---|---|---|---|---|---|
+  | MRST (store × article) | 1,481,981 | 1,118 | 2,997 | 3,439 | 1,560 | 357 | 11,142,239 | 2,150,902 |
+  | MRDC (article) | 108,362 | 527 | 3,432 | 3,367 | 6,417 | 1,647 | 221,787 | 205,429 |
+
+  D is mostly articles with no sales in the window (achievement 0% → D), same as the old views.
+
+### Next: attribute reports (proposal, not built)
+
+Same PSF / H-V logic, grouped by one extra article attribute (M_FAB_MAIN_MVGR_1, M_FAB_MAIN_MVGR_2, M_FIT,
+COLOR, SIZE, WEAVE_1, … any column of `STORE_ARTICLE_GRID_TREND`):
+
+| Level | Report grain | Benchmark (H/V against) |
+|---|---|---|
+| MRST | store × MAJ_CAT × attribute | `MRST_ST_MAJ_CAT_TREND` (already built) |
+| MRDC | MAJ_CAT × attribute | `MRDC_MAJ_CAT_TREND` (already built) |
+
+- Area is computed per article row (STK_Q × PPA) and summed, so any split by attribute adds up exactly to the
+  store × MAJ_CAT totals (PPA is the same for every article of a store + MAJ_CAT). PSF is never averaged.
+- Plan: move the PSF code of file 32 into a reusable `USP_BUILD_ATTR_TREND(attribute)` that builds
+  `MRST_ST_MAJ_CAT_<ATTR>_TREND` and `MRDC_MAJ_CAT_<ATTR>_TREND`; the attribute must be a column of the raw
+  copy; a small list table holds the attributes to refresh daily (new attribute = one row). Check: each
+  attribute table summed back to store × MAJ_CAT equals `MRST_ST_MAJ_CAT_TREND`.
+- Cost: ~1–2 min per attribute (MRST), seconds for MRDC.
+- To decide: (a) attribute group vs its store × MAJ_CAT (suggested), and/or (b) article vs its
+  store × MAJ_CAT × attribute group (heavier: an article-level table per attribute); which attributes
+  daily; table names.
 
 ## Files
 
