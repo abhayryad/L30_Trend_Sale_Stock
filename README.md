@@ -26,6 +26,7 @@ down in this README always mean `V2RETAIL.SILVER.<name>`.
 | `V2RETAIL.SILVER.TREND_KPI_DATA` | transient table | [00_](snowflake/00_create_trend_kpi_data.sql) | step 1 output (long list) |
 | `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS` | transient table | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) (procedure) | main table, step 2 |
 | `V2RETAIL.SILVER.PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT` | transient table | [06_](snowflake/06_USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT.sql) (procedure) | MAJ_CAT summary, step 2b |
+| `V2RETAIL.SILVER.STORE_ARTICLE_GRID_TREND` (raw), `MRST_ST_ART_TREND`, `MRST_ST_MAJ_CAT_TREND`, `MRDC_ART_TREND`, `MRDC_MAJ_CAT_TREND` | transient tables | [32_](snowflake/32_trend_grid_tables.sql) (procedure `USP_BUILD_TREND_GRID_TABLES`) | the 4 trend grid tables, step 2c (see "Trend grid tables") |
 | `V2RETAIL.SILVER.TREND_DIMENSIONS` | table | [13_](snowflake/13_USP_TREND_REPORT.sql) | names usable in `USP_TREND_REPORT` |
 | `V2RETAIL.SILVER.USP_GENERATE_L30D_STK_SALE_VQ_MRST` | procedure | [01_](snowflake/01_USP_GENERATE_L30D_STK_SALE_VQ_MRST.sql) | step 1 |
 | `V2RETAIL.SILVER.USP_PROCESS_DATA_SALE_STK_L30_DAYS` | procedure | [02_](snowflake/02_USP_PROCESS_DATA_SALE_STK_L30_DAYS.sql) | step 2 |
@@ -200,14 +201,15 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 | `V2RETAIL.SILVER.TREND_L30_LOAD` | hourly 07:00–12:00 IST (`CRON 0 7-12 * * * Asia/Kolkata`) | step 1 |
 | `V2RETAIL.SILVER.TREND_L30_PIVOT` | after LOAD | step 2 |
 | `V2RETAIL.SILVER.TREND_L30_MAJ_CAT` | after PIVOT | step 2b |
-| `V2RETAIL.SILVER.TREND_L30_PSF_VIEWS` | after MAJ_CAT | `USP_REBUILD_PSF_VIEWS` (PSF views on today's days, file 30) |
+| `V2RETAIL.SILVER.TREND_L30_GRID` | after PIVOT | `USP_BUILD_TREND_GRID_TABLES` (step 2c, the 4 trend grid tables, file 32; skips once built for the day) |
 
 - Owner: `PROGRAMMER_DEV_ROLE` (all tasks in a chain need the same owner). Warehouse `COMPUTE_WH`.
 - **Late sales (2026-10-17):** that day VBRP had no FP sales for 10-16 at 07:00 IST (they arrived
   08:00–09:00), so the 07:00 run loaded stock without sales and every TD PSF was 0. Now the chain starts
   hourly 07:00–12:00: step 1 fails (tables untouched) while VBRP has no FP sales for yesterday, and
   the next hour retries; once a run has finished, steps 1 and 2 skip for the rest of the day
-  (MAJ_CAT and PSF_VIEWS re-run hourly, about 1 minute). Set up by
+  (GRID skips too; MAJ_CAT and PSF_VIEWS re-run hourly, about 1 minute). `TREND_L30_PSF_VIEWS` (after
+  MAJ_CAT, `USP_REBUILD_PSF_VIEWS`) still runs until the old PSF views are dropped (file 33). Set up by
   [31_late_sales_retry.sql](snowflake/31_late_sales_retry.sql). Hourly FAILED rows in the task history
   before the sales arrive are expected.
 - Why 07:00: on 2026-10-09 the sources were last updated at 03:57 IST (VBRP) and 05:02 IST (stock).
@@ -218,7 +220,13 @@ the main table, `DIM_PRODUCT_V2`, the broader menu, `VW_PRODUCT_MASTER` and the 
 - Change the time: suspend `TREND_L30_LOAD`, `ALTER TASK … SET SCHEDULE`, resume it.
   A task chain can only be changed while its first task is suspended.
 
-## PSF view chains (files 20–30)
+## PSF view chains (files 20–30) — to be retired
+
+**Replaced by the trend grid tables (file 32).** Kept running for now (user decision 2026-10-17); drop them
+later with [33_drop_old_psf_views.sql](snowflake/33_drop_old_psf_views.sql). The files stay as the record of
+the logic (and to re-create the views if ever needed). Query history (30 days, checked 2026-10-17) showed only
+ad-hoc readers (ABHAY_YADAV, SHUBHAM_SVC, UNIVERSAL_MCP_SVC) and the rebuild task; no view, procedure
+or task elsewhere references them. `GOLD.SP_REFRESH_MIS_NAV_TREND30` reads `TREND_KPI_DATA` directly.
 
 Two branches per chain, both reading `PROCESS_DATA_SALE_STK_L30_DAYS`: article PSF on the left,
 MAJ-CAT PSF on the right. They meet in one join, then achievement % and the ARTICLE_HV band.
@@ -237,6 +245,56 @@ The views of files 20–23 and 26–29 name no days and are not re-created.
 **MRDC:** article vs MAJ-CAT, all stores
 
 ![MRDC PSF view chain](docs/diagrams/psf_chain_mrdc.svg)
+
+## Trend grid tables (file 32)
+
+A raw "original copy" and four tables with PSF and H/V built from it, rebuilt daily by
+`USP_BUILD_TREND_GRID_TABLES` (task `TREND_L30_GRID`, after PIVOT). The four replace the 18 views of the
+store and MRDC PSF chains (files 20–30); the old views keep running until the new tables are checked
+against them (queries at the end of file 32), then they are retired (decided 2026-10-17).
+
+```
+PROCESS_DATA_SALE_STK_L30_DAYS → STORE_ARTICLE_GRID_TREND (raw: data + attributes, never calculations)
+   → MRST_ST_MAJ_CAT_TREND, MRDC_MAJ_CAT_TREND     (PSF, averages: the benchmarks)
+   → MRST_ST_ART_TREND, MRDC_ART_TREND             (PSF, averages, benchmark, achievement, ARTICLE_HV)
+```
+
+| Table (`V2RETAIL.SILVER`) | Replaces | Grain | Key / attribute columns | Rows 2026-10-17 |
+|---|---|---|---|---|
+| `STORE_ARTICLE_GRID_TREND` | – (raw copy) | store × article | SEG, DIV, SUB_DIV, STORE_CODE, MATNR, MAJ_CAT, all DIM_PRODUCT_V2 attributes, COLOR, SIZE, all broader-menu attributes | 14,784,593 |
+| `MRST_ST_MAJ_CAT_TREND` | `V_MAJ_CAT_TREND` + `_PSF` + `_PSF_SUMMARY` | store × MAJ_CAT | SEG, DIV, SUB_DIV, STORE_CODE, MAJ_CAT | 180,361 |
+| `MRST_ST_ART_TREND` | `V_TREND_30_DAYS_GRID` + `_PSF` + `_PSF_SUMMARY`, `V_ARTICLE_MAJCAT_PSF`, `_ACH`, `V_ARTICLE_HV` | store × article | as the raw copy | 14,784,593 |
+| `MRDC_MAJ_CAT_TREND` | `V_MRDC_TREND_MAJ_CAT_30_DAYS_GRID` + `_PSF` + `_PSF_SUMMARY` | MAJ_CAT, stores summed | SEG, DIV, SUB_DIV, MAJ_CAT | 794 |
+| `MRDC_ART_TREND` | `V_MRDC_TREND_30_DAYS_GRID` + `_PSF` + `_PSF_SUMMARY`, `V_MRDC_ARTICLE_MAJCAT_PSF`, `_ACH`, `V_MRDC_ARTICLE_HV` | article, stores summed | as the raw copy without STORE_CODE | 550,968 |
+
+PSF columns (the 4 tables), after the keys: `FINAL_DENSITY, APF, PPA`, averages `SALE_PSF_ / GP_PSF_ / STR_`
+× `MTD, L7D, 30D, TD`; article tables also `MAJCAT_*` (benchmark averages), 8 achievement columns
+(`ST_MAJ_CAT_<w>_<SALE|GP>_ACHIEVEMENT` for MRST, `MAJ_CAT_…` for MRDC, text like `'125%'`) and `ARTICLE_HV`;
+then per day the 5 raw values + `FINAL_AREA_ / SALE_PSF_ / GP_PSF_ / STR_<YYYY_MM_DD>`. Formulas are those
+of files 30 and 21–29 (see the header of file 32). Benchmark: MRST article → its store + MAJ_CAT row,
+MRDC article → its MAJ_CAT row. Pre-check 2026-10-17: PPA sums equal the old views (MRST 1,804,097.60,
+MRDC 5,058.52); benchmark joins are one row per key. **First build 2026-10-17 13:49 (7 min), compared
+with the old views: 0 differences** in ARTICLE_HV, averages, MAJCAT benchmark, achievement and PPA
+(MRST 14,784,593 article rows, MRDC 550,968, MAJ_CAT 180,361 / 794).
+
+Space plan: `AKS_GOLD.SPACE_PLAN_<current month, IST>_<YYYYMMDD>_<HHMMSS>` with the latest timestamp in its
+name and rows in it (2026-10-17: `SPACE_PLAN_OCT_20261007_142428`). The name used is in the procedure's
+return value (`TASK_HISTORY.RETURN_VALUE`). Range names (`JUL_SEP`, …) never match.
+
+- Same rows as the old views: SEG APP / GM / MKT, active stores only (`ST_STAT = 'ACT'`, `ST_TYP = 'STORE'`,
+  432 of 482). Dry run 2026-10-17: rows and day totals equal the old views.
+- Clean names: `SUB_DIV`, `MAJ_CAT`, `MC_CODE`, `MERGE_VENDOR_CODE` (old: `"SUB-DIV"`, `"MAJ-CAT"`, `"MC-CD"`, `"M-VND-CD"`).
+- Article tables: every attribute now (the old views had 15). `COLOR` = `VW_PRODUCT_MASTER.NEW_COLOR_CODE`,
+  `SIZE` = `NEW_SIZE_DESC`; DIM's COLOR / COLOR_NEW / SIZE_1 / SIZE_STD and load columns (ROW_HASH,
+  ATTR_SOURCE, LVORM_RAW, CREATE_DATE, MODIFY_DATE, broader-menu STOCK_DATE) left out; M_YARN, M_YARN_02,
+  M_BUYING_TYPE from DIM. Blank text → `'NA'`. New source columns appear by themselves.
+- MAJ_CAT tables: keys only (no attributes), as before.
+
+**Still open (2026-10-17):** the 18 old PSF-chain views, `USP_REBUILD_PSF_VIEWS` and task `TREND_L30_PSF_VIEWS`
+stay for a while (user decision); drop them later with [33_drop_old_psf_views.sql](snowflake/33_drop_old_psf_views.sql)
+and tell ad-hoc readers (SHUBHAM_SVC, UNIVERSAL_MCP_SVC) to use `MRST_ST_ART_TREND` / `MRDC_ART_TREND`. Subreports on other columns (M_FAB, COLOR, M_FIT, …) were set aside by the user.
+On the 1st of a month the space plan switches to the new month while the data's last day is still the
+previous month.
 
 ## Files
 
@@ -268,6 +326,8 @@ snowflake/
   26_ … 29_                                         the same four for MRDC (all stores)
   30_USP_REBUILD_PSF_VIEWS.sql                      daily rebuild of the 8 per-day PSF-chain views + task TREND_L30_PSF_VIEWS
   31_late_sales_retry.sql                           one-off: hourly 07:00-12:00 schedule (wait for yesterday's sales)
+  32_trend_grid_tables.sql                          raw copy + the 4 trend grid tables MRST_* / MRDC_* with PSF and H/V (task TREND_L30_GRID)
+  33_drop_old_psf_views.sql                         one-off: drop the 18 old PSF-chain views, USP_REBUILD_PSF_VIEWS, task TREND_L30_PSF_VIEWS
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.
