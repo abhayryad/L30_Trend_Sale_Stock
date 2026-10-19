@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1287" viewBox="0 0 1400 1287" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#5F6368"/></marker><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1A73E8"/></marker><style>.name{font:600 14px Consolas, 'Courier New', monospace;fill:#202124;text-anchor:middle}.sub{font-size:12px;fill:#5F6368;text-anchor:middle}.task{font-size:11px;font-weight:600;fill:#3C4043;text-anchor:middle}.edge{stroke:#5F6368;stroke-width:1.6;fill:none}.elabel{font-size:12px;fill:#5F6368}.time{font-size:15px;font-weight:700;fill:#202124;text-anchor:end}.dur{font-size:11.5px;fill:#5F6368;text-anchor:end}.code{font:600 12.5px Consolas, 'Courier New', monospace;fill:#1A73E8}.desc{font-size:12.5px;fill:#3C4043}.step{font-size:10.5px;font-weight:700;fill:#FFFFFF;text-anchor:middle}.title{font-size:22px;font-weight:700;fill:#202124}.subtitle{font-size:13px;fill:#5F6368}.leg{font-size:12px;fill:#3C4043}.greyname{font:600 12px Consolas, 'Courier New', monospace;fill:#80868B;text-anchor:middle}.greysub{font-size:11px;fill:#80868B;text-anchor:middle}</style></defs>
+<rect width="1400" height="1287" fill="#FFFFFF"/>
+<text x="40" y="44" class="title">MRDC trend tables: build timeline</text>
+<text x="40" y="68" class="subtitle">All stores summed. Each article is compared with its MAJ-CAT row, then banded into ARTICLE_HV.</text>
+<text x="640" y="92" class="elabel" font-weight="600">Columns / formulas created, in order</text>
+<path d="M150 110 L150 1167" stroke="#DADCE0" stroke-width="3"/>
+<circle cx="150" cy="120" r="7" fill="#5F6368"/>
+<text x="134" y="125" class="time">07:00</text>
+<text x="134" y="142" class="dur">hourly till 12:00</text>
+<rect x="200" y="100" width="400" height="72" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="400.0" y="118" class="task">TREND_L30_LOAD</text>
+<text x="400.0" y="141" class="name">TREND_KPI_DATA</text>
+<text x="400.0" y="161" class="sub">table · article × store × day × KPI</text>
+<path d="M600 136 L640 136" stroke="#DADCE0" stroke-width="1.4" stroke-dasharray="3 3"/>
+<rect x="640" y="100" width="720" height="72" rx="8" fill="#F8F9FA" stroke="#DADCE0" stroke-width="1.2"/>
+<text x="658" y="122"><tspan class="desc" xml:space="preserve">Loads yesterday&#x27;s sale + stock. Waits until yesterday&#x27;s sales exist;</tspan></text>
+<text x="658" y="143"><tspan class="desc" xml:space="preserve">retried every hour 07:00–12:00 (each later step skips once done).</tspan></text>
+<circle cx="150" cy="232" r="7" fill="#5F6368"/>
+<text x="134" y="237" class="time">07:03</text>
+<text x="134" y="254" class="dur">~11 min</text>
+<rect x="200" y="212" width="400" height="72" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="400.0" y="230" class="task">TREND_L30_PIVOT</text>
+<text x="400.0" y="253" class="name">PROCESS_DATA_SALE_STK_L30_DAYS</text>
+<text x="400.0" y="273" class="sub">table · article × store · 31 days as columns</text>
+<path d="M600 248 L640 248" stroke="#DADCE0" stroke-width="1.4" stroke-dasharray="3 3"/>
+<rect x="640" y="212" width="720" height="89" rx="8" fill="#F8F9FA" stroke="#DADCE0" stroke-width="1.2"/>
+<text x="658" y="234"><tspan class="code">&lt;day&gt;_STK_Q, _STK_V, _SALE_Q, _SALE_V, _SALE_GM</tspan></text>
+<text x="658" y="255"><tspan class="desc" xml:space="preserve">5 raw KPIs per day, 31 days. D = the last day here; every window below</tspan></text>
+<text x="658" y="276"><tspan class="desc" xml:space="preserve">is counted back from D.</tspan></text>
+<circle cx="150" cy="361" r="7" fill="#5F6368"/>
+<text x="134" y="366" class="time">07:14</text>
+<text x="134" y="383" class="dur">~3 min</text>
+<rect x="200" y="341" width="400" height="72" rx="8" fill="#FFFFFF" stroke="#5F6368" stroke-width="1.6"/>
+<text x="400.0" y="359" class="task">TREND_L30_GRID · USP_BUILD_TREND_GRID_TABLES</text>
+<text x="400.0" y="382" class="name">STORE_ARTICLE_GRID_TREND</text>
+<text x="400.0" y="402" class="sub">table · store × article · raw copy</text>
+<path d="M600 377 L640 377" stroke="#DADCE0" stroke-width="1.4" stroke-dasharray="3 3"/>
+<rect x="640" y="341" width="720" height="131" rx="8" fill="#F8F9FA" stroke="#DADCE0" stroke-width="1.2"/>
+<text x="658" y="363"><tspan class="code">SPACE_PLAN_&lt;MON&gt;_&lt;YYYYMMDD&gt;_&lt;HHMMSS&gt;</tspan><tspan class="desc" xml:space="preserve"> picked first: AKS_GOLD, current month,</tspan></text>
+<text x="658" y="384"><tspan class="desc" xml:space="preserve">latest timestamp, not empty. Used for PPA in every step below.</tspan></text>
+<text x="658" y="405"><tspan class="desc" xml:space="preserve">Active stores only (ST_STAT = &#x27;ACT&#x27;, ST_TYP = &#x27;STORE&#x27;).</tspan></text>
+<text x="658" y="426"><tspan class="desc" xml:space="preserve">+ every DIM_PRODUCT_V2 column, COLOR / SIZE from VW_PRODUCT_MASTER,</tspan></text>
+<text x="658" y="447"><tspan class="desc" xml:space="preserve">+ ET_ART_BROADER_MENU_DATA. Blank text → &#x27;NA&#x27;. No calculations.</tspan></text>
+<circle cx="150" cy="534.0" r="5" fill="#FFFFFF" stroke="#BDC1C6" stroke-width="2"/>
+<text x="136" y="539.0" class="dur">07:17:33</text>
+<rect x="350" y="512" width="250" height="44" rx="8" fill="#F8F9FA" stroke="#BDC1C6" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text x="475.0" y="531" class="greyname">MRST_ST_MAJ_CAT_TREND</text>
+<text x="475.0" y="547" class="greysub">built here, see the MRST diagram</text>
+<circle cx="150" cy="598" r="7" fill="#1A73E8"/>
+<text x="134" y="603" class="time">07:17:47</text>
+<text x="134" y="620" class="dur">~28 s</text>
+<rect x="200" y="578" width="400" height="72" rx="8" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.6"/>
+<text x="400.0" y="596" class="task">step 3 of the procedure</text>
+<text x="400.0" y="619" class="name">MRDC_MAJ_CAT_TREND</text>
+<text x="400.0" y="639" class="sub">MAJ-CAT, stores summed · the MRDC benchmark</text>
+<path d="M600 614 L640 614" stroke="#DADCE0" stroke-width="1.4" stroke-dasharray="3 3"/>
+<rect x="640" y="578" width="720" height="236" rx="8" fill="#F8F9FA" stroke="#DADCE0" stroke-width="1.2"/>
+<circle cx="662" cy="596" r="9" fill="#1A73E8"/>
+<text x="662" y="600" class="step">a</text>
+<text x="682" y="600"><tspan class="desc" xml:space="preserve">SUM the raw day columns over all stores, by SEG / DIV / SUB_DIV / MAJ_CAT</tspan></text>
+<circle cx="662" cy="617" r="9" fill="#1A73E8"/>
+<text x="662" y="621" class="step">b</text>
+<text x="682" y="621"><tspan class="code">PPA</tspan><tspan class="desc" xml:space="preserve"> = AVG(FINAL DENSITY) of the MAJ_CAT over all stores / 22</tspan></text>
+<text x="682" y="642"><tspan class="desc" xml:space="preserve">APF is fixed at 22 (shown in the APF column)</tspan></text>
+<circle cx="662" cy="659" r="9" fill="#1A73E8"/>
+<text x="662" y="663" class="step">c</text>
+<text x="682" y="663"><tspan class="code">FINAL_AREA_&lt;day&gt;</tspan><tspan class="desc" xml:space="preserve"> = STK_Q × PPA</tspan></text>
+<text x="682" y="684"><tspan class="code">SALE_PSF_&lt;day&gt;</tspan><tspan class="desc" xml:space="preserve"> = SALE_V / FINAL_AREA      </tspan></text>
+<text x="682" y="705"><tspan class="code">GP_PSF_&lt;day&gt;</tspan><tspan class="desc" xml:space="preserve"> = SALE_GM / FINAL_AREA</tspan></text>
+<text x="682" y="726"><tspan class="code">STR_&lt;day&gt;</tspan><tspan class="desc" xml:space="preserve"> = STK_V / (SALE_V − SALE_GM)</tspan></text>
+<circle cx="662" cy="743" r="9" fill="#1A73E8"/>
+<text x="662" y="747" class="step">d</text>
+<text x="682" y="747"><tspan class="code">SALE_PSF_ / GP_PSF_ / STR_ × MTD, L7D, 30D, TD</tspan></text>
+<text x="682" y="768"><tspan class="desc" xml:space="preserve">average of the days with a value &gt; 0: MTD = 1st of D&#x27;s month … D,</tspan></text>
+<text x="682" y="789"><tspan class="desc" xml:space="preserve">L7D = D-6 … D, 30D = D-29 … D, TD = D. Divide-by-zero / missing → 0.</tspan></text>
+<circle cx="150" cy="876.0" r="5" fill="#FFFFFF" stroke="#BDC1C6" stroke-width="2"/>
+<text x="136" y="881.0" class="dur">07:18:15</text>
+<rect x="350" y="854" width="250" height="44" rx="8" fill="#F8F9FA" stroke="#BDC1C6" stroke-width="1.2" stroke-dasharray="5 4"/>
+<text x="475.0" y="873" class="greyname">MRST_ST_ART_TREND</text>
+<text x="475.0" y="889" class="greysub">built here, see the MRST diagram</text>
+<circle cx="150" cy="940" r="7" fill="#1A73E8"/>
+<text x="134" y="945" class="time">07:20:32</text>
+<text x="134" y="962" class="dur">~2 min 33 s</text>
+<rect x="200" y="920" width="400" height="72" rx="8" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.6"/>
+<text x="400.0" y="938" class="task">step 5 of the procedure (last)</text>
+<text x="400.0" y="961" class="name">MRDC_ART_TREND</text>
+<text x="400.0" y="981" class="sub">article, stores summed · PSF + H/V</text>
+<path d="M600 956 L640 956" stroke="#DADCE0" stroke-width="1.4" stroke-dasharray="3 3"/>
+<rect x="640" y="920" width="720" height="257" rx="8" fill="#F8F9FA" stroke="#DADCE0" stroke-width="1.2"/>
+<circle cx="662" cy="938" r="9" fill="#1A73E8"/>
+<text x="662" y="942" class="step">a</text>
+<text x="682" y="942"><tspan class="desc" xml:space="preserve">SUM the raw day columns over all stores, by article (+ its attributes)</tspan></text>
+<circle cx="662" cy="959" r="9" fill="#1A73E8"/>
+<text x="662" y="963" class="step">b</text>
+<text x="682" y="963"><tspan class="code">PPA</tspan><tspan class="desc" xml:space="preserve"> = AVG(FINAL DENSITY) of the article&#x27;s MAJ_CAT / 22</tspan></text>
+<circle cx="662" cy="980" r="9" fill="#1A73E8"/>
+<text x="662" y="984" class="step">c</text>
+<text x="682" y="984"><tspan class="code">FINAL_AREA_ / SALE_PSF_ / GP_PSF_ / STR_&lt;day&gt;</tspan><tspan class="desc" xml:space="preserve">  same formulas as the MAJ-CAT row</tspan></text>
+<circle cx="662" cy="1001" r="9" fill="#1A73E8"/>
+<text x="662" y="1005" class="step">d</text>
+<text x="682" y="1005"><tspan class="code">SALE_PSF_ / GP_PSF_ / STR_ × MTD, L7D, 30D, TD</tspan><tspan class="desc" xml:space="preserve">  same averages</tspan></text>
+<circle cx="662" cy="1022" r="9" fill="#1A73E8"/>
+<text x="662" y="1026" class="step">e</text>
+<text x="682" y="1026"><tspan class="code">MAJCAT_SALE_PSF_*, MAJCAT_GP_PSF_*, MAJCAT_STR_*</tspan><tspan class="desc" xml:space="preserve">  (12)</tspan></text>
+<text x="682" y="1047"><tspan class="desc" xml:space="preserve">LEFT JOIN MRDC_MAJ_CAT_TREND ON MAJ_CAT; no match → 0</tspan></text>
+<circle cx="662" cy="1064" r="9" fill="#1A73E8"/>
+<text x="662" y="1068" class="step">f</text>
+<text x="682" y="1068"><tspan class="code">MAJ_CAT_&lt;TD|MTD|L7D|30D&gt;_&lt;SALE|GP&gt;_ACHIEVEMENT</tspan><tspan class="desc" xml:space="preserve">  (8)</tspan></text>
+<text x="682" y="1089"><tspan class="desc" xml:space="preserve">ROUND(article PSF / MAJCAT PSF × 100) shown as text, e.g. &#x27;125%&#x27;</tspan></text>
+<circle cx="662" cy="1106" r="9" fill="#1A73E8"/>
+<text x="662" y="1110" class="step">g</text>
+<text x="682" y="1110"><tspan class="code">ARTICLE_HV</tspan><tspan class="desc" xml:space="preserve"> band each of SALE 30D, SALE L7D, GP 30D, GP L7D achievement:</tspan></text>
+<text x="682" y="1131"><tspan class="desc" xml:space="preserve">≤25 D · ≤50 VV · ≤90 V · ≤125 N · ≤170 H · ≤200 HH · &gt;200 G</tspan></text>
+<text x="682" y="1152"><tspan class="desc" xml:space="preserve">all four in the same band → that band, otherwise &#x27;NA&#x27;.</tspan></text>
+<path d="M260 172 L260 212" class="edge" marker-end="url(#ah)"/>
+<path d="M260 284 L260 341" class="edge" marker-end="url(#ah)"/>
+<path d="M260 413 L260 578" class="edge" marker-end="url(#ah)"/>
+<path d="M230 413 L230 425 L182 425 L182 906 L230 906 L230 920" class="edge" marker-end="url(#ah)"/>
+<text x="270" y="564" class="elabel">raw rows, summed</text>
+<path d="M320 650 L320 920" stroke="#1A73E8" stroke-width="1.8" fill="none" marker-end="url(#ab)"/>
+<text x="328" y="670" class="elabel" fill="#1A73E8" style="fill:#1A73E8">benchmark: MAJ_CAT</text>
+<circle cx="48" cy="1235" r="7" fill="#1A73E8"/><text x="62" y="1239" class="leg">built by the procedure (file 32)</text>
+<circle cx="290" cy="1235" r="7" fill="#5F6368"/><text x="304" y="1239" class="leg">earlier task in the daily chain</text>
+<rect x="510" y="1226" width="26" height="16" rx="4" fill="#F8F9FA" stroke="#BDC1C6" stroke-dasharray="4 3"/><text x="544" y="1239" class="leg">other branch, built in between</text>
+<circle cx="790" cy="1235" r="9" fill="#1A73E8"/><text x="790" y="1239" class="step">a</text><text x="806" y="1239" class="leg">order the columns are worked out inside one CREATE TABLE</text>
+<text x="40" y="1265" class="leg">Times (IST) and durations from the 2026-10-19 run (ACCOUNT_USAGE.QUERY_HISTORY). Each table is CREATE OR REPLACE TRANSIENT TABLE … AS SELECT.</text>
+</svg>

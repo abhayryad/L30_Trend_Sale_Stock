@@ -259,6 +259,17 @@ PROCESS_DATA_SALE_STK_L30_DAYS → STORE_ARTICLE_GRID_TREND (raw: data + attribu
    → MRST_ST_ART_TREND, MRDC_ART_TREND             (PSF, averages, benchmark, achievement, ARTICLE_HV)
 ```
 
+Build timelines (times from the 2026-10-19 run): each table in the order it is created, and the columns /
+formulas worked out inside it, in order.
+
+**MRST:** article × store vs store + MAJ-CAT
+
+![MRST trend tables build timeline](docs/diagrams/trend_grid_timeline_mrst.svg)
+
+**MRDC:** article vs MAJ-CAT, all stores
+
+![MRDC trend tables build timeline](docs/diagrams/trend_grid_timeline_mrdc.svg)
+
 | Table (`V2RETAIL.SILVER`) | Replaces | Grain | Key / attribute columns | Rows 2026-10-17 |
 |---|---|---|---|---|
 | `STORE_ARTICLE_GRID_TREND` | – (raw copy) | store × article | SEG, DIV, SUB_DIV, STORE_CODE, MATNR, MAJ_CAT, all DIM_PRODUCT_V2 attributes, COLOR, SIZE, all broader-menu attributes | 14,784,593 |
