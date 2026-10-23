@@ -330,26 +330,54 @@ previous month.
 
   D is mostly articles with no sales in the window (achievement 0% → D), same as the old views.
 
-### Next: attribute reports (proposal, not built)
+### Attribute trend tables (file 34, built 2026-10-19)
 
-Same PSF / H-V logic, grouped by one extra article attribute (M_FAB_MAIN_MVGR_1, M_FAB_MAIN_MVGR_2, M_FIT,
-COLOR, SIZE, WEAVE_1, … any column of `STORE_ARTICLE_GRID_TREND`):
+`USP_BUILD_ATTR_TREND('<columns>')` ([34_](snowflake/34_attr_trend_tables.sql)) builds 4 tables per attribute set
+with the same PSF / H-V logic as file 32, the chosen columns added to the MAJ_CAT grouping. It reads **only the
+parent `STORE_ARTICLE_GRID_TREND`** (never the MRST_* / MRDC_* tables of file 32); store × MAJ_CAT and MAJ_CAT
+benchmarks are summed again from the parent inside the same statement.
 
-| Level | Report grain | Benchmark (H/V against) |
+```sql
+CALL V2RETAIL.SILVER.USP_BUILD_ATTR_TREND('COLOR');
+CALL V2RETAIL.SILVER.USP_BUILD_ATTR_TREND('M_FIT, COLOR');   -- combination, tables named ..._COLOR_M_FIT_TREND
+```
+
+| Table (`V2RETAIL.SILVER`), `<SET>` = columns sorted, joined by `_` | Grain | Benchmark (H/V against) | H/V column |
+|---|---|---|---|
+| `MRST_ST_MAJ_CAT_<SET>_TREND` | store × MAJ_CAT × attributes | its store × MAJ_CAT (`MAJCAT_*`) | `ATTR_HV` |
+| `MRDC_MAJ_CAT_<SET>_TREND` | MAJ_CAT × attributes | its MAJ_CAT (`MAJCAT_*`) | `ATTR_HV` |
+| `MRST_ST_ART_<SET>_TREND` | store × article, full | its row in table 1 (`<SET>_*`) | `ARTICLE_HV` |
+| `MRDC_ART_<SET>_TREND` | article, full | its row in table 2 (`<SET>_*`) | `ARTICLE_HV` |
+
+- 1-5 columns of the parent, not a key or day column (checked against INFORMATION_SCHEMA). Attribute joins use
+  `EQUAL_NULL`. Achievement columns: `ST_MAJ_CAT_<w>_…` / `MAJ_CAT_<w>_…` (group tables),
+  `ST_MAJ_CAT_<SET>_<w>_…` / `MAJ_CAT_<SET>_<w>_…` (article tables).
+- Each set built is recorded in `TREND_ATTR_LIST`. **Not in the daily task yet**: re-run the `CALL` by hand
+  (planned: step 6 of `USP_BUILD_TREND_GRID_TABLES` loops over the active sets).
+- Deploy: run file 34 in Snowsight (the MCP connection cannot run CREATE).
+
+COLOR, first build 2026-10-19 (data up to 2026-10-18), 7 min:
+
+| Table | Rows | Size |
 |---|---|---|
-| MRST | store × MAJ_CAT × attribute | `MRST_ST_MAJ_CAT_TREND` (already built) |
-| MRDC | MAJ_CAT × attribute | `MRDC_MAJ_CAT_TREND` (already built) |
+| `MRST_ST_MAJ_CAT_COLOR_TREND` | 2,071,919 | 1.12 GB |
+| `MRDC_MAJ_CAT_COLOR_TREND` | 14,789 | 0.02 GB |
+| `MRST_ST_ART_COLOR_TREND` | 14,950,288 | 5.34 GB |
+| `MRDC_ART_COLOR_TREND` | 553,323 | 0.34 GB |
 
-- Area is computed per article row (STK_Q × PPA) and summed, so any split by attribute adds up exactly to the
-  store × MAJ_CAT totals (PPA is the same for every article of a store + MAJ_CAT). PSF is never averaged.
-- Plan: move the PSF code of file 32 into a reusable `USP_BUILD_ATTR_TREND(attribute)` that builds
-  `MRST_ST_MAJ_CAT_<ATTR>_TREND` and `MRDC_MAJ_CAT_<ATTR>_TREND`; the attribute must be a column of the raw
-  copy; a small list table holds the attributes to refresh daily (new attribute = one row). Check: each
-  attribute table summed back to store × MAJ_CAT equals `MRST_ST_MAJ_CAT_TREND`.
-- Cost: ~1–2 min per attribute (MRST), seconds for MRDC.
-- To decide: (a) attribute group vs its store × MAJ_CAT (suggested), and/or (b) article vs its
-  store × MAJ_CAT × attribute group (heavier: an article-level table per attribute); which attributes
-  daily; table names.
+Checks, all 0 differences: one row per key in all 4; group tables summed back = `MRST_ST_MAJ_CAT_TREND` /
+`MRDC_MAJ_CAT_TREND` (sale, stock, area on the last day; all 181,014 / 795 matched); recomputed `MAJCAT_*`
+benchmark = the original tables' averages; every article finds its group and its `<SET>_*` benchmark = the
+group's averages; the article's own PSF / PPA = `MRST_ST_ART_TREND` / `MRDC_ART_TREND`.
+
+H/V spread (COLOR):
+
+| Table | G | HH | H | N | V | VV | D | NA |
+|---|---|---|---|---|---|---|---|---|
+| MRST store × MAJ_CAT × COLOR | 462,746 | 2,476 | 9,589 | 31,170 | 4,572 | 518 | 1,019,535 | 541,313 |
+| MRDC MAJ_CAT × COLOR | 1,513 | 39 | 373 | 890 | 1,292 | 311 | 4,386 | 5,985 |
+| MRST article vs COLOR group | 1,305,588 | 16,921 | 28,303 | 63,591 | 7,114 | 1,671 | 11,170,976 | 2,356,124 |
+| MRDC article vs COLOR group | 112,399 | 1,047 | 5,856 | 6,623 | 7,187 | 1,499 | 218,807 | 199,905 |
 
 ## Files
 
@@ -383,6 +411,9 @@ snowflake/
   31_late_sales_retry.sql                           one-off: hourly 07:00-12:00 schedule (wait for yesterday's sales)
   32_trend_grid_tables.sql                          raw copy + the 4 trend grid tables MRST_* / MRDC_* with PSF and H/V (task TREND_L30_GRID)
   33_drop_old_psf_views.sql                         one-off: drop the 18 old PSF-chain views, USP_REBUILD_PSF_VIEWS, task TREND_L30_PSF_VIEWS
+  34_attr_trend_tables.sql                          TREND_ATTR_LIST + USP_BUILD_ATTR_TREND(columns): 4 attribute trend tables per set
+  35_attr_trend_daily.sql                           USP_BUILD_ATTR_TREND_ALL: daily rebuild of every active attribute set (task TREND_L30_ATTR)
+  36_v_mrst_trend_st_maj_cat.sql                    USP_BUILD_V_MRST_TREND_ST_MAJ_CAT: store x MAJ_CAT sale/stock view (task TREND_L30_SALE_STK_VIEW)
 ```
 
 Setup order: 00 → 01 → 02 → 06 → 05 → 03 → 13, all as `PROGRAMMER_DEV_ROLE`.

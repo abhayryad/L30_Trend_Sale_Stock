@@ -3,6 +3,8 @@
 --   TREND_L30_PIVOT   after LOAD  -> USP_PROCESS_DATA_SALE_STK_L30_DAYS         (rebuilds PROCESS_DATA_SALE_STK_L30_DAYS)
 --   TREND_L30_MAJ_CAT  after PIVOT -> USP_PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT  (rebuilds PROCESS_DATA_SALE_STK_L30_DAYS_MAJCAT)
 --   TREND_L30_GRID    after PIVOT -> USP_BUILD_TREND_GRID_TABLES                (raw copy + the 4 MRST_* / MRDC_* PSF / H-V tables, 32_)
+--   TREND_L30_ATTR    after GRID  -> USP_BUILD_ATTR_TREND_ALL                   (every active set in TREND_ATTR_LIST, 34_ / 35_)
+--   TREND_L30_SALE_STK_VIEW after GRID -> USP_BUILD_V_MRST_TREND_ST_MAJ_CAT (V_MRST_TREND_ST_MAJ_CAT, 36_)
 -- TREND_L30_PSF_VIEWS (after MAJ_CAT -> USP_REBUILD_PSF_VIEWS) still exists in Snowflake but is no longer
 -- created here: the GRID tables replace the old PSF views, which are kept for a while and then dropped
 -- together with that task by 33_drop_old_psf_views.sql.
@@ -54,8 +56,27 @@ CREATE OR REPLACE TASK V2RETAIL.SILVER.TREND_L30_GRID
 AS
     CALL V2RETAIL.SILVER.USP_BUILD_TREND_GRID_TABLES();
 
+-- Added 2026-10-21: needs 34_ and 35_ deployed first. Rebuilds the attribute sets on the fresh grid;
+-- sets already on the parent's last day are skipped.
+CREATE OR REPLACE TASK V2RETAIL.SILVER.TREND_L30_ATTR
+    WAREHOUSE = COMPUTE_WH
+    COMMENT   = 'L30D step 3: rebuild every active attribute set in TREND_ATTR_LIST (34_ / 35_)'
+    AFTER V2RETAIL.SILVER.TREND_L30_GRID
+AS
+    CALL V2RETAIL.SILVER.USP_BUILD_ATTR_TREND_ALL();
+
+-- Added 2026-10-22: needs 36_ deployed first. Recreates the sale/stock view on the new date columns.
+CREATE OR REPLACE TASK V2RETAIL.SILVER.TREND_L30_SALE_STK_VIEW
+    WAREHOUSE = COMPUTE_WH
+    COMMENT   = 'L30D step 3b: recreate V_MRST_TREND_ST_MAJ_CAT on the new date columns (36_)'
+    AFTER V2RETAIL.SILVER.TREND_L30_GRID
+AS
+    CALL V2RETAIL.SILVER.USP_BUILD_V_MRST_TREND_ST_MAJ_CAT();
+
 -- Tasks are created paused. Turn them on, children first
 -- (to add a task to the running chain: SUSPEND TREND_L30_LOAD first, then create and resume):
+ALTER TASK V2RETAIL.SILVER.TREND_L30_SALE_STK_VIEW RESUME;
+ALTER TASK V2RETAIL.SILVER.TREND_L30_ATTR RESUME;
 ALTER TASK V2RETAIL.SILVER.TREND_L30_GRID RESUME;
 ALTER TASK V2RETAIL.SILVER.TREND_L30_MAJ_CAT RESUME;
 ALTER TASK V2RETAIL.SILVER.TREND_L30_PIVOT RESUME;
@@ -72,7 +93,7 @@ SHOW TASKS LIKE 'TREND_L30%' IN SCHEMA V2RETAIL.SILVER;
 --        CONVERT_TIMEZONE('Asia/Kolkata', COMPLETED_TIME) AS COMPLETED_IST, ERROR_MESSAGE
 -- FROM TABLE(V2RETAIL.INFORMATION_SCHEMA.TASK_HISTORY(
 --          SCHEDULED_TIME_RANGE_START => DATEADD(DAY, -7, CURRENT_TIMESTAMP())))
--- WHERE NAME IN ('TREND_L30_LOAD', 'TREND_L30_PIVOT', 'TREND_L30_MAJ_CAT', 'TREND_L30_GRID')
+-- WHERE NAME IN ('TREND_L30_LOAD', 'TREND_L30_PIVOT', 'TREND_L30_MAJ_CAT', 'TREND_L30_GRID', 'TREND_L30_ATTR')
 -- ORDER BY SCHEDULED_TIME DESC;
 
 -- Pause (parent first; the others only run after LOAD anyway):
