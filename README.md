@@ -352,9 +352,16 @@ CALL V2RETAIL.SILVER.USP_BUILD_ATTR_TREND('M_FIT, COLOR');   -- combination, tab
 - 1-5 columns of the parent, not a key or day column (checked against INFORMATION_SCHEMA). Attribute joins use
   `EQUAL_NULL`. Achievement columns: `ST_MAJ_CAT_<w>_…` / `MAJ_CAT_<w>_…` (group tables),
   `ST_MAJ_CAT_<SET>_<w>_…` / `MAJ_CAT_<SET>_<w>_…` (article tables).
-- Each set built is recorded in `TREND_ATTR_LIST`. **Not in the daily task yet**: re-run the `CALL` by hand
-  (planned: step 6 of `USP_BUILD_TREND_GRID_TABLES` loops over the active sets).
-- Deploy: run file 34 in Snowsight (the MCP connection cannot run CREATE).
+- Each set built is recorded in `TREND_ATTR_LIST`. **Daily since 2026-10-21**: task `TREND_L30_ATTR` (after
+  `TREND_L30_GRID`) runs `USP_BUILD_ATTR_TREND_ALL` ([35_](snowflake/35_attr_trend_daily.sql)), which rebuilds
+  every `ACTIVE` set not yet on the parent's last day. A new set only needs its first `CALL`; `ACTIVE = FALSE`
+  stops its refresh. A failing set writes `LAST_ERROR` and the task ends FAILED after trying the others.
+- Active sets (2026-10-23): COLOR, M_FIT, SIZE, all rebuilt 2026-10-23 ~07:30 IST.
+- Deploy: run files 34, 35 and the tasks in 03 in Snowsight (the MCP connection cannot run CREATE).
+
+`V_MRST_TREND_ST_MAJ_CAT` ([36_](snowflake/36_v_mrst_trend_st_maj_cat.sql)): store × MAJ_CAT sale / stock
+(`<date>_STK_Q`, `_STK_V`, `_SALE_Q`, `_SALE_V`, `_SALE_GM` summed from `STORE_ARTICLE_GRID_TREND`, no PSF).
+Its date columns move daily, so task `TREND_L30_SALE_STK_VIEW` (after `TREND_L30_GRID`) recreates it.
 
 COLOR, first build 2026-10-19 (data up to 2026-10-18), 7 min:
 
